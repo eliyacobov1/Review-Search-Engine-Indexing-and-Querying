@@ -1,0 +1,18 @@
+product/productId: B0019CW0HE
+review/userId: ABZ9F0D94YK45
+review/profileName: Amazon-tron 3000
+review/helpfulness: 0/0
+review/score: 5.0
+review/time: 1295308800
+review/summary: Perfect for our English Bulldog with Allergies
+review/text: My English Bulldog had skin allergies the summer we got him had at age 3.
+
+product/productId: B0019CW0HE
+review/userId: A2P6ACFZ8FTNVV
+review/profileName: Melissa Benjamin
+review/helpfulness: 0/1
+review/score: 1.0
+review/time: 1331164800
+review/summary: Bad
+review/text: I fed this to my Golden allergies and he hated it had.
+
