@@ -60,8 +60,8 @@ public class IndexReader
      * Note that the integers should be sorted by id
      *
      * Returns an empty Enumeration if there are no reviews containing this token
-     * /
-     public Enumeration<Integer> getReviewsWithToken(String token) {}
+     */
+     public Enumeration<Integer> getReviewsWithToken(String token) {return null;}
 
      /**
      * Return the number of product reviews available in the system
@@ -80,15 +80,5 @@ public class IndexReader
      *
      * Returns an empty Enumeration if there are no reviews for this product
      */
-    public Enumeration<Integer> getProductReviews(String productId) {return new Enumeration<Integer>() {
-        @Override
-        public boolean hasMoreElements() {
-            return false;
-        }
-
-        @Override
-        public Integer nextElement() {
-            return null;
-        }
-    };}
+    public Enumeration<Integer> getProductReviews(String productId) {return null;}
 }
