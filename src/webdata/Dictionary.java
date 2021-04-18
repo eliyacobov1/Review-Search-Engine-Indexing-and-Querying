@@ -8,11 +8,12 @@ public class Dictionary
     public int[] dictionary;      // for 1d array implementation
     int blockIndex = 0;     // for keeping track in block array
     int dictIndex = 0;      // for keeping track in dictionary array
-
-    public static final int K = 8; // value for k -1 in k encoding of dictionary
+    public static final int K = 3; // value for k -1 in k encoding of dictionary
     public static final int ENTRIES_FOR_FIRST_LAST = 3;
     public static final int ENTRIES_FOR_MIDDLE = 4;
-//  3 for first word in block (freq, len, postingPrt) + 3 for last word in block (freq, postingPrt, prefix) + 4 for words in middle of block (freq, len, postingPrt, prefix)
+    public static final int LINE_LENGTH = ENTRIES_FOR_FIRST_LAST*2 + ENTRIES_FOR_MIDDLE*(K-2);
+//  3 for first word in block (freq, len, postingPrt) + 3 for last word in block (freq, postingPrt, prefix)
+//  + 4 for words in middle of block (freq, len, postingPrt, prefix)
 
     /*
     Dictionary description:
@@ -60,7 +61,8 @@ public class Dictionary
 
         // if we want 1d array
         int middleOfBlockWords = vocabularySize - 2*amountOfBlocks;
-        int totalSizeOfDict = amountOfBlocks*ENTRIES_FOR_FIRST_LAST + amountOfBlocks*ENTRIES_FOR_FIRST_LAST + middleOfBlockWords*ENTRIES_FOR_MIDDLE;
+        int totalSizeOfDict = amountOfBlocks*ENTRIES_FOR_FIRST_LAST + amountOfBlocks*ENTRIES_FOR_FIRST_LAST +
+                middleOfBlockWords*ENTRIES_FOR_MIDDLE;
         dictionary = new int[totalSizeOfDict+1];
     }
 
@@ -137,6 +139,94 @@ public class Dictionary
     public void addLastWordOfBlock(String word, int freq, int postingPtr, int prefixLen)
     {
         addWordThatIsNotFirst(word, freq, postingPtr, prefixLen, false);
+    }
+
+    /**
+     * returns pointer to the beginning of the "row" where word #wordOffset begins
+     * @param blockIndex index of the wanted block
+     * @param wordOffset offset of the word in the block
+     * @return pointer to the beginning of the wanted "row"
+     */
+    private int getWordRow(int blockIndex, int wordOffset)
+    {
+        int beginningOfBlock = blockIndex * Dictionary.LINE_LENGTH;
+        int offset = 0;
+        if (wordOffset != 0)
+        {
+            offset = ENTRIES_FOR_FIRST_LAST + (wordOffset-1)*ENTRIES_FOR_MIDDLE;
+        }
+        return beginningOfBlock + offset;
+    }
+
+    /**
+     * returns the length of the wanted word
+     * @param blockIndex block where word is in
+     * @param wordOffset offset of the word in the block
+     * @return length of the wanted word
+     */
+    public int getWordLen(int blockIndex, int wordOffset)
+    {
+        return dictionary[getWordRow(blockIndex, wordOffset) + 1];
+    }
+
+    /**
+     * returns the frequency of the wanted word
+     * @param blockIndex block where word is in
+     * @param wordOffset offset of the word in the block
+     * @return frequency of the wanted word
+     */
+    public int getWordFreq(int blockIndex, int wordOffset)
+    {
+        return dictionary[getWordRow(blockIndex, wordOffset)];
+    }
+
+    /**
+     * returns the posting list pointer of the wanted word
+     * @param blockIndex block where word is in
+     * @param wordOffset offset of the word in the block
+     * @param firstOrLast boolean indicator for first or last word of block
+     * @return posting list pointer of the wanted word
+     */
+    public int getPostingPtr(int blockIndex, int wordOffset, boolean firstOrLast)
+    {
+        if (firstOrLast)
+        {
+            return dictionary[getWordRow(blockIndex, wordOffset) + 2];
+        }
+        else
+        {
+            return dictionary[getWordRow(blockIndex, wordOffset) + 3];
+        }
+    }
+
+    /**
+     * returns the length of the prefix of the wanted word
+     * @param blockIndex block where word is in
+     * @param wordOffset offset of the word in the block
+     * @return length of the prefix of the wanted word
+     */
+    public int getWordPrefix(int blockIndex, int wordOffset)
+    {
+        return dictionary[getWordRow(blockIndex, wordOffset) + 2];
+    }
+
+    /**
+     * returns the length of the prefix of the wanted word
+     * @param blockIndex block where word is in
+     * @param wordOffset offset of the word in the block
+     * @param last true if this is the last word of the block
+     * @return length of the prefix of the wanted word
+     */
+    public int getWordPrefix(int blockIndex, int wordOffset, boolean last)
+    {
+        if (last)
+        {
+            return dictionary[getWordRow(blockIndex, wordOffset) + 1];
+        }
+        else
+        {
+            return dictionary[getWordRow(blockIndex, wordOffset) + 2];
+        }
     }
 
 }

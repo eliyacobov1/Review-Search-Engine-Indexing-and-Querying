@@ -4,7 +4,7 @@ import java.util.*;
 
 public class SlowIndexWriter
 {
-
+    public Dictionary dict;
     /**
      * creates and returns a list containing the meta data of a review
      * @param productId String representing the productId of the product reviewed
@@ -162,58 +162,62 @@ public class SlowIndexWriter
         processReviews(wordCountTotal, wordInReviewsCount, reviewsWordIsIn, countOfWordInReview, reviewsMetaData,
                 numOfTotalTokens, reviewId, inputFile);
 
-        ArrayList<String> sortedVocabulary = new ArrayList<>(wordCountTotal.keySet());
-        Collections.sort(sortedVocabulary);
+        // sort vocabulary to insert into dictionary and index
+//        ArrayList<String> sortedVocabulary = new ArrayList<>(wordCountTotal.keySet());
+//        Collections.sort(sortedVocabulary);
         //--------------------------------------------------
         // sanity check for dictionary creation
-        // backwards, bad, badly, badminton, bag, baggage, bake, baker, balcony
+        // background, backpack, backpacking, backwards, bad, badly, badminton, bag, baggage, bake, baker, balcony, bald, ball, ballet
 
-//        wordCountTotal.clear();
-//        wordCountTotal.put("backwards", 1);
-//        wordCountTotal.put("bad", 2);
-//        wordCountTotal.put("badly", 3);
-//        wordCountTotal.put("badminton", 4);
-//        wordCountTotal.put("bag", 5);
-//        wordCountTotal.put("baggage", 6);
-//        wordCountTotal.put("bake", 7);
-//        wordCountTotal.put("baker", 8);
-//        wordCountTotal.put("balcony", 9);
-//        String[] w = new String[]{"backwards", "bad", "badly", "badminton", "bag", "baggage", "bake", "baker", "balcony"};
-//        ArrayList<String> sortedVocabulary = new ArrayList(Arrays.asList(w));
+        wordCountTotal.clear();
+        wordCountTotal.put("background", 111);
+        wordCountTotal.put("backpack", 111);
+        wordCountTotal.put("backpacking", 1111);
+        wordCountTotal.put("backwards", 1);
+        wordCountTotal.put("bad", 2);
+        wordCountTotal.put("badly", 3);
+        wordCountTotal.put("badminton", 4);
+        wordCountTotal.put("bag", 5);
+        wordCountTotal.put("baggage", 6);
+        wordCountTotal.put("bake", 7);
+        wordCountTotal.put("baker", 8);
+        wordCountTotal.put("balcony", 9);
+        wordCountTotal.put("bald", 10);
+        wordCountTotal.put("ball", 11);
+        wordCountTotal.put("ballet", 12);
+        String[] w = new String[]{"background", "backpack", "backpacking", "backwards", "bad", "badly", "badminton", "bag", "baggage", "bake", "baker", "balcony", "bald", "ball", "ballet"};
+//        String[] w = new String[]{"background", "backpack", "backpacking", "backwards", "bad", "badly", "badminton", "bag", "baggage", "bake", "baker", "balcony"};
+        ArrayList<String> sortedVocabulary = new ArrayList(Arrays.asList(w));
         //--------------------------------------------------
-        System.out.println(sortedVocabulary);
-        System.out.println(sortedVocabulary.size());
+//        System.out.println(sortedVocabulary);
+//        System.out.println(sortedVocabulary.size());
 
-        Dictionary dict = new Dictionary(sortedVocabulary.size());
+        dict = new Dictionary(sortedVocabulary.size());
+//        Dictionary dict = new Dictionary(sortedVocabulary.size());
         ListIterator<String> vocabIter = sortedVocabulary.listIterator();
         String prevWord = "";
-
 
         while (vocabIter.hasNext())
         {
             int index = vocabIter.nextIndex();
             String word = vocabIter.next();
             int freq = wordCountTotal.get(word);
-            int postingPrt = 0; //TODO: missing
+            int postingPrt = -1; //TODO: missing
             int prefixLen = commonPrefix(word, prevWord);
-            if (index % Dictionary.K == 0)
+            if (index % Dictionary.K == 0)      // first word of block
             {
-                // first word of block
                 dict.addFirstWordInBlock(word, freq, postingPrt);
             }
-            else if ((index + 1) % Dictionary.K == 0)
+            else if ((index + 1) % Dictionary.K == 0) // last word of block
             {
-                // last word of block
                 dict.addLastWordOfBlock(word, freq, postingPrt, prefixLen);
             }
-            else
+            else // middle word of block
             {
-                // middle word of block
                 dict.addMiddleWordOfBlock(word, freq, postingPrt, prefixLen);
             }
             prevWord = word;
         }
-
         System.out.println(dict.concatStr);
         System.out.println(Arrays.toString(dict.blockArray));
         System.out.println(Arrays.toString(dict.dictionary));
@@ -240,8 +244,8 @@ concatStr:
 concatenated string of words with k-1 in k coding.
 
 for example: 2 in 3
-background|pack|ing || backwards|d|ly || badminton|g|gage || bake|r|lacony
-0                      17                29                  43
+background|pack|ing || backwards|d|ly || badminton|g|gage || bake|r|lacony || bald|l|et
+0                      17                29                  43               53
 
 blockArray:
 holds "pointers" (indices in concatStr) to the beginning of blocks
@@ -252,6 +256,7 @@ index   | block ptr
 1       |17
 2       |29
 3       |43
+4       |53
 
 
 fullArray:
