@@ -4,23 +4,43 @@ import java.util.*;
 
 public class SlowIndexWriter
 {
-    public Dictionary dict;
+    public Dictionary dict;//TODO: delete
     /**
      * creates and returns a list containing the meta data of a review
      * @param productId String representing the productId of the product reviewed
      * @param numerator String representing the numerator of the helpfulness of the review
      * @param denominator String representing the denominator of the helpfulness of the review
      * @param score String representing the score of the review
+     * @param length String representing the length of the text of the review
      * @return ArrayList<String> with meta data of review
      */
-    private ArrayList<String> getMetadata(String productId, String numerator, String denominator, String score)
+    private ArrayList<String> getMetadata(String productId, String numerator, String denominator, String score, String length)
     {
         ArrayList<String> metaData = new ArrayList<>();
         metaData.add(productId);
         metaData.add(numerator);
         metaData.add(denominator);
         metaData.add(score);
+        metaData.add(length);
         return metaData;
+    }
+
+    /**
+     * for updating hash maps with String key and arrayList values. If key isn't in hashmap yet - creates new one.
+     * adds the given value to the array list the is at map[word]
+     * @param word String key of hashmap
+     * @param mapToUpdate HashMap<String, ArrayList<Integer>> that is to be updated
+     * @param toAdd Integer value to add to the array list of word
+     */
+    private void updateArrayList(String word, HashMap<String, ArrayList<Integer>> mapToUpdate, Integer toAdd)
+    {
+        ArrayList<Integer> reviewList = mapToUpdate.get(word);
+        if (reviewList == null)
+        {
+            reviewList = new ArrayList<>();
+        }
+        reviewList.add(toAdd);
+        mapToUpdate.put(word, reviewList);
     }
 
     /**
@@ -47,10 +67,11 @@ public class SlowIndexWriter
             ArrayList<String> reviewData = rp.getNextReview();
             String[] text = rp.getReviewText();
 
-            reviewsMetaData.add(getMetadata(reviewData.get(0), reviewData.get(1), reviewData.get(2), reviewData.get(3)));
+            reviewsMetaData.add(getMetadata(reviewData.get(0), reviewData.get(1), reviewData.get(2), reviewData.get(3), Integer.toString(text.length)));
 
-            HashMap<String, Integer> wordCountInThisReview = new HashMap<>();
-
+            HashMap<String, Integer> wordCountInThisReview = new HashMap<>();   // for counting how many time each word appeared in the text
+            // iterate over text. count amount of tokens (with repetitions)
+            // and count amount of times word appeared in text
             for (String word : text)
             {
                 numOfTotalTokens[0]++;
@@ -61,6 +82,13 @@ public class SlowIndexWriter
                 }
             }
 
+            // enter/update "productId" into data structures
+            String productId = reviewData.get(0);
+            updateArrayList(productId, reviewsWordIsIn, reviewId[0]);
+
+            updateArrayList(productId, countOfWordInReview, 1);
+
+            // enter/update each significant word into data structures
             for (String word : wordCountInThisReview.keySet())
             {
                 // update total count of this word
@@ -76,26 +104,11 @@ public class SlowIndexWriter
                 {
                     wordInReviewsCount.put(word, ++prevVal);
                 }
-
                 // update list of reviews this word appears in
-                ArrayList<Integer> reviewList = reviewsWordIsIn.get(word);
-                if (reviewList == null)
-                {
-                    reviewList = new ArrayList<>();
-                }
-                reviewList.add(reviewId[0]);
-                reviewsWordIsIn.put(word, reviewList);
-
+                updateArrayList(word, reviewsWordIsIn, reviewId[0]);
                 // update amount of times this word appears in reviews
-                ArrayList<Integer> wordCountList = countOfWordInReview.get(word);
-                if (wordCountList == null)
-                {
-                    wordCountList = new ArrayList<>();
-                }
-                wordCountList.add(wordCountInThisReview.get(word));
-                countOfWordInReview.put(word, wordCountList);
+                updateArrayList(word, countOfWordInReview, wordCountInThisReview.get(word));
             }
-
             reviewId[0]++;
         }
     }
@@ -158,42 +171,42 @@ public class SlowIndexWriter
         HashMap<String, ArrayList<Integer>> countOfWordInReview = new HashMap<>();
         ArrayList<ArrayList<String>> reviewsMetaData = new ArrayList<>();
         int[] numOfTotalTokens = {0};
-        int[] reviewId = {1};
+        int[] reviewId = {1};      // TODO: do we start from 0 or 1? if from 1 - take in account in dictionary
         processReviews(wordCountTotal, wordInReviewsCount, reviewsWordIsIn, countOfWordInReview, reviewsMetaData,
                 numOfTotalTokens, reviewId, inputFile);
 
         // sort vocabulary to insert into dictionary and index
-//        ArrayList<String> sortedVocabulary = new ArrayList<>(wordCountTotal.keySet());
-//        Collections.sort(sortedVocabulary);
+        ArrayList<String> sortedVocabulary = new ArrayList<>(wordCountTotal.keySet());
+        Collections.sort(sortedVocabulary);
         //--------------------------------------------------
         // sanity check for dictionary creation
         // background, backpack, backpacking, backwards, bad, badly, badminton, bag, baggage, bake, baker, balcony, bald, ball, ballet
 
-        wordCountTotal.clear();
-        wordCountTotal.put("background", 111);
-        wordCountTotal.put("backpack", 111);
-        wordCountTotal.put("backpacking", 1111);
-        wordCountTotal.put("backwards", 1);
-        wordCountTotal.put("bad", 2);
-        wordCountTotal.put("badly", 3);
-        wordCountTotal.put("badminton", 4);
-        wordCountTotal.put("bag", 5);
-        wordCountTotal.put("baggage", 6);
-        wordCountTotal.put("bake", 7);
-        wordCountTotal.put("baker", 8);
-        wordCountTotal.put("balcony", 9);
-        wordCountTotal.put("bald", 10);
-        wordCountTotal.put("ball", 11);
-        wordCountTotal.put("ballet", 12);
-        String[] w = new String[]{"background", "backpack", "backpacking", "backwards", "bad", "badly", "badminton", "bag", "baggage", "bake", "baker", "balcony", "bald", "ball", "ballet"};
+//        wordCountTotal.clear();
+//        wordCountTotal.put("background", 111);
+//        wordCountTotal.put("backpack", 111);
+//        wordCountTotal.put("backpacking", 1111);
+//        wordCountTotal.put("backwards", 1);
+//        wordCountTotal.put("bad", 2);
+//        wordCountTotal.put("badly", 3);
+//        wordCountTotal.put("badminton", 4);
+//        wordCountTotal.put("bag", 5);
+//        wordCountTotal.put("baggage", 6);
+//        wordCountTotal.put("bake", 7);
+//        wordCountTotal.put("baker", 8);
+//        wordCountTotal.put("balcony", 9);
+//        wordCountTotal.put("bald", 10);
+//        wordCountTotal.put("ball", 11);
+//        wordCountTotal.put("ballet", 12);
+//        String[] w = new String[]{"background", "backpack", "backpacking", "backwards", "bad", "badly", "badminton", "bag", "baggage", "bake", "baker", "balcony", "bald", "ball", "ballet"};
 //        String[] w = new String[]{"background", "backpack", "backpacking", "backwards", "bad", "badly", "badminton", "bag", "baggage", "bake", "baker", "balcony"};
-        ArrayList<String> sortedVocabulary = new ArrayList(Arrays.asList(w));
+//        ArrayList<String> sortedVocabulary = new ArrayList(Arrays.asList(w));
         //--------------------------------------------------
 //        System.out.println(sortedVocabulary);
 //        System.out.println(sortedVocabulary.size());
 
-        dict = new Dictionary(sortedVocabulary.size());
-//        Dictionary dict = new Dictionary(sortedVocabulary.size());
+        dict = new Dictionary(sortedVocabulary.size(), reviewId[0] -1, numOfTotalTokens[0]); //TODO: delete
+//        Dictionary dict = new Dictionary(sortedVocabulary.size(), reviewId[0] -1, numOfTotalTokens[0]);
         ListIterator<String> vocabIter = sortedVocabulary.listIterator();
         String prevWord = "";
 
@@ -202,6 +215,7 @@ public class SlowIndexWriter
             int index = vocabIter.nextIndex();
             String word = vocabIter.next();
             int freq = wordCountTotal.get(word);
+            // write to index and save pointer
             int postingPrt = -1; //TODO: missing
             int prefixLen = commonPrefix(word, prevWord);
             if (index % Dictionary.K == 0)      // first word of block
@@ -218,16 +232,28 @@ public class SlowIndexWriter
             }
             prevWord = word;
         }
+
+        // save metadata of reviews. write to file and save pointer in dictionary
+        ArrayList<String> meta;
+        for (int i = 0; i < reviewId[0]-1; i++) //TODO: check boundary - maybe reviewId[0] and not -1
+        {
+            meta = reviewsMetaData.get(i);
+            int metaPtr = -11;      // TODO: write meta to file, get pointer
+            dict.metaDataPtrArray[i] = metaPtr;
+        }
+
         System.out.println(dict.concatStr);
         System.out.println(Arrays.toString(dict.blockArray));
         System.out.println(Arrays.toString(dict.dictionary));
-//        System.out.println(numOfTotalTokens[0]);
-//        System.out.println(reviewId[0] - 1);
-//        System.out.println(wordCountTotal);
+        System.out.println();
+        System.out.println(numOfTotalTokens[0]);
+        System.out.println(reviewId[0] - 1);
+        System.out.println(wordCountTotal);
 //        System.out.println(wordInReviewsCount);
-//        System.out.println(reviewsWordIsIn);
+        System.out.println(reviewsWordIsIn);
 //        System.out.println(countOfWordInReview);
 //        System.out.println(reviewsMetaData);
+//        System.out.println(sortedVocabulary);
     }
 
     /**

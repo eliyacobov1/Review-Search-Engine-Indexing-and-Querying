@@ -1,5 +1,6 @@
 package webdata;
 
+import java.util.Collections;
 import java.util.Enumeration;
 
 public class IndexReader
@@ -159,42 +160,148 @@ public class IndexReader
         return -1;
     }
 
+    /**
+     * returns the pointer to the relevant location in metadata file.
+     * returns -1 if there is no review with the given identifier
+     * @param reviewId identifier of the wanted review
+     * @return pointer to the relevant location in metadata file. -1 if there is no review with the given identifier
+     */
+    private int getMetaPtr(int reviewId)
+    {
+        if (reviewId > dictionary.metaDataPtrArray.length)
+        {
+            return -1;
+        }
+        return dictionary.metaDataPtrArray[reviewId];
+    }
+
+    // ---------------------------------- User API ----------------------------------
 
     /**
      * Returns the product identifier for the given review
      * Returns null if there is no review with the given identifier
      */
-    public String getProductId(int reviewId) {return null;}
+    public String getProductId(int reviewId)
+    {
+        int metaPtr = getMetaPtr(reviewId);
+        if (metaPtr == -1) // no review with given identifier
+        {
+            return null;
+        }
+        else
+        {
+            return null; // TODO: read from metadata file the productId and return it
+        }
+    }
 
     /**
      * Returns the score for a given review
      * Returns -1 if there is no review with the given identifier
      */
-    public int getReviewScore(int reviewId) {return -1;}
+    public int getReviewScore(int reviewId)
+    {
+        int metaPtr = getMetaPtr(reviewId);
+        if (metaPtr == -1) // no review with given identifier
+        {
+            return -1;
+        }
+        else
+        {
+            return -1; // TODO: read from metadata file the score and return it
+        }
+    }
 
     /**
      * Returns the numerator for the helpfulness of a given review
      * Returns -1 if there is no review with the given identifier
      */
-    public int getReviewHelpfulnessNumerator(int reviewId) {return -1;}
+    public int getReviewHelpfulnessNumerator(int reviewId)
+    {
+        int metaPtr = getMetaPtr(reviewId);
+        if (metaPtr == -1) // no review with given identifier
+        {
+            return -1;
+        }
+        else
+        {
+            return -1; // TODO: read from metadata file the HelpfulnessNumerator and return it
+        }
+    }
 
     /**
      * Returns the denominator for the helpfulness of a given review
      * Returns -1 if there is no review with the given identifier
      */
-    public int getReviewHelpfulnessDenominator(int reviewId) {return -1;}
+    public int getReviewHelpfulnessDenominator(int reviewId)
+    {
+        int metaPtr = getMetaPtr(reviewId);
+        if (metaPtr == -1) // no review with given identifier
+        {
+            return -1;
+        }
+        else
+        {
+            return -1; // TODO: read from metadata file the HelpfulnessDenominator and return it
+        }
+    }
 
     /**
      * Returns the number of tokens in a given review
      * Returns -1 if there is no review with the given identifier
      */
-    public int getReviewLength(int reviewId) {return -1;}
+    public int getReviewLength(int reviewId)
+    {
+        int metaPtr = getMetaPtr(reviewId);
+        if (metaPtr == -1) // no review with given identifier
+        {
+            return -1;
+        }
+        else
+        {
+            return -1; // TODO: read from metadata file the length and return it
+        }
+    }
+
+    /**
+     * returns the posting list pointer of given token. if token is not in dictionary - returns -1
+     * @param token token to search for in dictionary
+     * @return posting list pointer of given token. if token is not in dictionary - returns -1
+     */
+    private int getPostingListPrt(String token)
+    {
+        int blockIndex = findBlockOfToken(token);
+        int wordOffset = getLocationOfTokenInBlock(blockIndex, token);
+        if (wordOffset == -1)
+            return -1;
+        if (wordOffset == 0 || wordOffset == Dictionary.K - 1)
+            return dictionary.getPostingPtr(blockIndex, wordOffset, true);
+        return dictionary.getPostingPtr(blockIndex, wordOffset, false);
+    }
 
     /**
      * Return the number of reviews containing a given token (i.e., word)
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenFrequency(String token)
+    {
+        int postingPtr = getPostingListPrt(token);
+        if (postingPtr == -1)
+        {
+            return 0;
+        }
+        else
+        {
+            // TODO: read from invertedIndex and compute length of posting list
+            return 0;
+        }
+    }
+
+    /**
+     * Return the number of times that a given token (i.e., word) appears in
+     * the reviews indexed
+     * Returns 0 if there are no reviews containing this token
+     */
+    public int getTokenCollectionFrequency(String token)
     {
         int blockIndex = findBlockOfToken(token);
         int wordOffset = getLocationOfTokenInBlock(blockIndex, token);
@@ -205,13 +312,6 @@ public class IndexReader
     }
 
     /**
-     * Return the number of times that a given token (i.e., word) appears in
-     * the reviews indexed
-     * Returns 0 if there are no reviews containing this token
-     */
-    public int getTokenCollectionFrequency(String token) {return 0;}
-
-    /**
      * Return a series of integers of the form id-1, freq-1, id-2, freq-2, ... such
      * that id-n is the n-th review containing the given token and freq-n is the
      * number of times that the token appears in review id-n
@@ -220,18 +320,36 @@ public class IndexReader
      *
      * Returns an empty Enumeration if there are no reviews containing this token
      */
-     public Enumeration<Integer> getReviewsWithToken(String token) {return null;}
+     public Enumeration<Integer> getReviewsWithToken(String token)
+     {
+         int postingPtr = getPostingListPrt(token);
+         if (postingPtr == -1)
+         {
+             return Collections.emptyEnumeration();
+         }
+         else
+         {
+             //TODO: read from invertedIndex and create enumeration for output
+             return null;
+         }
+     }
 
      /**
      * Return the number of product reviews available in the system
      */
-    public int getNumberOfReviews() {return 0;}
+    public int getNumberOfReviews()
+    {
+        return dictionary.metaDataPtrArray.length;
+    }
 
     /**
      * Return the number of number of tokens in the system
      * (Tokens should be counted as many times as they appear)
      */
-    public int getTokenSizeOfReviews() {return 0;}
+    public int getTokenSizeOfReviews()
+    {
+        return dictionary.tokenSizeOfReviews;
+    }
 
     /**
      * Return the ids of the reviews for a given product identifier
@@ -239,5 +357,17 @@ public class IndexReader
      *
      * Returns an empty Enumeration if there are no reviews for this product
      */
-    public Enumeration<Integer> getProductReviews(String productId) {return null;}
+    public Enumeration<Integer> getProductReviews(String productId)
+    {
+        int postingPtr = getPostingListPrt(productId);
+        if (postingPtr == -1)
+        {
+            return Collections.emptyEnumeration();
+        }
+        else
+        {
+            //TODO: read from invertedIndex and create enumeration for output
+            return null;
+        }
+    }
 }

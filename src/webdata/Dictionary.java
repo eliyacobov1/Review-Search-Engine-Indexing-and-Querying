@@ -4,21 +4,31 @@ public class Dictionary
 {
     public String concatStr = "";
     public int[] blockArray;
-//    public int[][] dictionary;      // for 2d array implementation
+    //    public int[][] dictionary;      // for 2d array implementation
     public int[] dictionary;      // for 1d array implementation
+    public int[] metaDataPtrArray;
+    public int tokenSizeOfReviews;
+
     int blockIndex = 0;     // for keeping track in block array
     int dictIndex = 0;      // for keeping track in dictionary array
-    public static final int K = 3; // value for k -1 in k encoding of dictionary
+
+    /* ------------------------ Class Constants ----------------------------------*/
+    public static final int K = 8; // value for k -1 in k encoding of dictionary
     public static final int ENTRIES_FOR_FIRST_LAST = 3;
     public static final int ENTRIES_FOR_MIDDLE = 4;
     public static final int LINE_LENGTH = ENTRIES_FOR_FIRST_LAST*2 + ENTRIES_FOR_MIDDLE*(K-2);
 //  3 for first word in block (freq, len, postingPrt) + 3 for last word in block (freq, postingPrt, prefix)
 //  + 4 for words in middle of block (freq, len, postingPrt, prefix)
+    public static final int PREFIX_INDEX_MIDDLE = 2;
+    public static final int PREFIX_INDEX_LAST = 1;
+    public static final int POSTING_INDEX_FIRST_OR_LAST = 2;
+    public static final int POSTING_INDEX_MIDDLE = 3;
+    public static final int LENGTH_INDEX = 1;
 
     /*
     Dictionary description:
     -----------------------
-    3 components - String, block array, dictionary
+    4 components - String, block array, dictionary, metaDataPtrArray
 
     1) String concatStr:
     The string of concatenated k-1 in k front Encoding string.
@@ -27,7 +37,7 @@ public class Dictionary
     Array with 1 entry per block. The i'th entry in the array in the pointer to the beginning of the i'th block of the
     concatStr - i.e where the first word of the i'th block begins (and is fully written)
 
-    3( int[]/int[][] dictionary:
+    3) int[]/int[][] dictionary:
     Array with the actual data needed for our dictionary -
     1. frequency        2.length        3.length of common prefix with previous word
     4. pointer to location in inverted index where the posting list begins
@@ -38,9 +48,15 @@ public class Dictionary
     - first word of block - [freq, length, postingPtr]
     - words in middle of block - [freq, length, prefix, postingPtr]
     - last word of block - [freq, prefix, postingPrt]
+
+    4) metaDataPtrArray:
+    array of pointers to metadata index file.
+    The i'th entry is a pointer to location in the metadata index file where the metadata about the i'th review can be
+    found. i.e metaDataPtrArray[reviewId] = pointer to metadataIndexFile where metadata of reviewId is saved.
     --------------------------------------------------------------------
      */
-    public Dictionary(int vocabularySize)
+
+    public Dictionary(int vocabularySize, int amountOfReviews, int amountOfTokens)
     {
         int amountOfBlocks = (int) Math.ceil(((double) vocabularySize / K));
         blockArray = new int[amountOfBlocks];
@@ -60,10 +76,13 @@ public class Dictionary
 //        }
 
         // if we want 1d array
-        int middleOfBlockWords = vocabularySize - 2*amountOfBlocks;
+        int amountOfMiddleOfBlockWords = vocabularySize - 2*amountOfBlocks;
         int totalSizeOfDict = amountOfBlocks*ENTRIES_FOR_FIRST_LAST + amountOfBlocks*ENTRIES_FOR_FIRST_LAST +
-                middleOfBlockWords*ENTRIES_FOR_MIDDLE;
+                amountOfMiddleOfBlockWords *ENTRIES_FOR_MIDDLE;
         dictionary = new int[totalSizeOfDict+1];
+
+        metaDataPtrArray = new int[amountOfReviews];
+        tokenSizeOfReviews = amountOfTokens;
     }
 
     /**
@@ -91,8 +110,6 @@ public class Dictionary
         writeToDict(freq);
         writeToDict(word.length());
         writeToDict(postingPrt);
-
-        // if word in the beginning of block i in blockArray, then word is at line i*k of dictionary
     }
 
     /**
@@ -166,7 +183,7 @@ public class Dictionary
      */
     public int getWordLen(int blockIndex, int wordOffset)
     {
-        return dictionary[getWordRow(blockIndex, wordOffset) + 1];
+        return dictionary[getWordRow(blockIndex, wordOffset) + LENGTH_INDEX];
     }
 
     /**
@@ -191,11 +208,11 @@ public class Dictionary
     {
         if (firstOrLast)
         {
-            return dictionary[getWordRow(blockIndex, wordOffset) + 2];
+            return dictionary[getWordRow(blockIndex, wordOffset) + POSTING_INDEX_FIRST_OR_LAST];
         }
         else
         {
-            return dictionary[getWordRow(blockIndex, wordOffset) + 3];
+            return dictionary[getWordRow(blockIndex, wordOffset) + POSTING_INDEX_MIDDLE];
         }
     }
 
@@ -207,7 +224,7 @@ public class Dictionary
      */
     public int getWordPrefix(int blockIndex, int wordOffset)
     {
-        return dictionary[getWordRow(blockIndex, wordOffset) + 2];
+        return dictionary[getWordRow(blockIndex, wordOffset) + PREFIX_INDEX_MIDDLE];
     }
 
     /**
@@ -221,11 +238,11 @@ public class Dictionary
     {
         if (last)
         {
-            return dictionary[getWordRow(blockIndex, wordOffset) + 1];
+            return dictionary[getWordRow(blockIndex, wordOffset) + PREFIX_INDEX_LAST];
         }
         else
         {
-            return dictionary[getWordRow(blockIndex, wordOffset) + 2];
+            return dictionary[getWordRow(blockIndex, wordOffset) + PREFIX_INDEX_MIDDLE];
         }
     }
 
