@@ -53,14 +53,47 @@ public class ReviewPreprocessor
      */
     private void readNextReview()
     {
-        String currLine;
-        currLine = reader.nextLine(); // productId
+        // old implementation - changed to use regex instead of just skipping lines blindly
+//        String currLine;
+//        currLine = reader.nextLine(); // productId
+//
+//        currentReviewMetaData.set(0, getInfo(currLine));
+//        reader.nextLine();
+//        reader.nextLine();
+//
+//        currLine = reader.nextLine(); // helpfulness
+//        String helpfulness = getInfo(currLine);
+//        String[] strArr = helpfulness.split("/");
+//        String numerator = strArr[0];
+//        String denominator = strArr[1];
+//        currentReviewMetaData.set(1, numerator);
+//        currentReviewMetaData.set(2, denominator);
+//
+//        currLine = reader.nextLine(); // score
+//        currentReviewMetaData.set(3, getInfo(currLine));
+//
+//        reader.nextLine();
+//        reader.nextLine();
+//
+//        currLine = reader.nextLine(); // text
+//        currLine = getInfo(currLine);
+//        reviewText = currLine.split("\\W+");
+//        for (int i = 0; i < reviewText.length; i++)
+//        {
+//            reviewText[i] = reviewText[i].toLowerCase();
+//        }
+//
+//        reader.nextLine();
+
+        String currLine = reader.nextLine();
+        while (!currLine.contains("product/productId:"))
+            currLine = reader.nextLine();
 
         currentReviewMetaData.set(0, getInfo(currLine));
-        reader.nextLine();
-        reader.nextLine();
 
-        currLine = reader.nextLine(); // helpfulness
+        while (!currLine.contains("review/helpfulness:"))
+            currLine = reader.nextLine();
+
         String helpfulness = getInfo(currLine);
         String[] strArr = helpfulness.split("/");
         String numerator = strArr[0];
@@ -68,21 +101,21 @@ public class ReviewPreprocessor
         currentReviewMetaData.set(1, numerator);
         currentReviewMetaData.set(2, denominator);
 
-        currLine = reader.nextLine(); // score
+        while (!currLine.contains("review/score:"))
+            currLine = reader.nextLine();
+
         currentReviewMetaData.set(3, getInfo(currLine));
 
-        reader.nextLine();
-        reader.nextLine();
+        while (!currLine.contains("review/text:"))
+            currLine = reader.nextLine();
 
-        currLine = reader.nextLine(); // text
         currLine = getInfo(currLine);
-        reviewText = currLine.split("\\W+");
+        reviewText = currLine.split("\\W+"); // take only alpha-numeric characters
         for (int i = 0; i < reviewText.length; i++)
         {
             reviewText[i] = reviewText[i].toLowerCase();
         }
 
-        reader.nextLine();
     }
 
     /**
@@ -91,7 +124,7 @@ public class ReviewPreprocessor
      */
     public boolean hasMoreReviews()
     {
-        return reader.hasNextLine();
+        return reader.hasNext("product/productId:");
     }
 
     /**

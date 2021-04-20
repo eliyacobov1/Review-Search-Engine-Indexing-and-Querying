@@ -2,24 +2,98 @@ package webdata;
 
 import java.util.Collections;
 import java.util.Enumeration;
+import java.io.*;
+
 
 public class IndexReader
 {
-    private Dictionary dictionary;
+    public Dictionary dictionary; //TODO: make private
 
-    //TODO next 3 lines is only for sanity checking
-    public IndexReader(String dir, Dictionary d)
-    {
-        dictionary = d;
+    /**
+     * reads an array of ints that was previously saved to disk. how much to read is stored before the data itself.
+     * @param dis DataInputStream to read from
+     * @return array of ints that was read
+     */
+    private int[] readIntArray(DataInputStream dis) throws IOException {
+        int arrayLen = dis.readInt();   // first read the length of the array
+        int[] array = new int[arrayLen];
+        for (int i = 0; i < arrayLen; i++)
+        {
+            array[i] = dis.readInt();
+        }
+        return array;
     }
+
+    /**
+     * reads the dictionary from the dist to memory
+     * @param dir directory where dictionary is stored
+     */
+    private void loadDictionary(String dir)
+    {
+        //TODO: take care of path properly, not sure this will work properly on linux
+        String path = dir.concat("\\myDict");
+
+        /*-------------------- reading ints and string --------------------*/
+//        DataInputStream dis = null;
+//        FileInputStream fis = null;
+//
+//        try
+//        {
+//            fis = new FileInputStream(path);
+//            dis = new DataInputStream(fis);
+//            int concatStrLen = dis.readInt();
+//            StringBuilder sb = new StringBuilder();
+//            for (int i = 0 ; i < concatStrLen; i++)
+//            {
+//                sb.append(dis.readChar());
+//            }
+//            String concatStr = sb.toString();
+//
+//            int tokenSizeOfReviews = dis.readInt();
+//
+//            int[] blockArray = readIntArray(dis);
+//            int[] dict = readIntArray(dis);
+//            int[] metaDataPtrArray = readIntArray(dis);
+//            dictionary = new Dictionary(tokenSizeOfReviews, concatStr, blockArray, dict, metaDataPtrArray);
+//        }
+//        catch (IOException e)
+//        {
+//            e.printStackTrace();
+//        }
+//        finally
+//        {
+//            Utils.safelyCloseStreams(fis, dis);
+//        }
+
+        /*-------------------- reading object --------------------*/
+        InputStream fis = null;
+        ObjectInputStream ois = null;
+
+        try
+        {
+            fis = new FileInputStream(path);
+            ois = new ObjectInputStream(fis);
+            dictionary = (Dictionary) ois.readObject();
+        }
+        catch (IOException | ClassNotFoundException e)
+        {
+            e.printStackTrace();
+        }
+        finally
+        {
+            Utils.safelyCloseStreams(fis, ois);
+        }
+
+    }
+
 
     /**
      * Creates an IndexReader which will read from the given directory
      */
-//    public IndexReader(String dir)
-//    {
-//        dictionary = // TODO read dictionary from dir
-//    }
+    public IndexReader(String dir)
+    {
+        loadDictionary(dir);
+    }
 
 
     /**

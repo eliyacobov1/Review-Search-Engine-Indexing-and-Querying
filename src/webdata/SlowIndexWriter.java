@@ -1,5 +1,9 @@
 package webdata;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.*;
 
 public class SlowIndexWriter
@@ -138,8 +142,7 @@ public class SlowIndexWriter
      * dir is the directory in which all index files will be created
      * if the directory does not exist, it should be created
      */
-    public void slowWrite(String inputFile, String dir)
-    {
+    public void slowWrite(String inputFile, String dir){
     /*
     data structures:
     hashmaps:
@@ -178,6 +181,8 @@ public class SlowIndexWriter
         // sort vocabulary to insert into dictionary and index
         ArrayList<String> sortedVocabulary = new ArrayList<>(wordCountTotal.keySet());
         Collections.sort(sortedVocabulary);
+//        System.out.println(sortedVocabulary);
+//        System.out.println(sortedVocabulary.size());
         //--------------------------------------------------
         // sanity check for dictionary creation
         // background, backpack, backpacking, backwards, bad, badly, badminton, bag, baggage, bake, baker, balcony, bald, ball, ballet
@@ -205,8 +210,8 @@ public class SlowIndexWriter
 //        System.out.println(sortedVocabulary);
 //        System.out.println(sortedVocabulary.size());
 
-        dict = new Dictionary(sortedVocabulary.size(), reviewId[0] -1, numOfTotalTokens[0]); //TODO: delete
-//        Dictionary dict = new Dictionary(sortedVocabulary.size(), reviewId[0] -1, numOfTotalTokens[0]);
+//        dict = new Dictionary(sortedVocabulary.size(), reviewId[0] -1, numOfTotalTokens[0]); //TODO: delete
+        Dictionary dict = new Dictionary(sortedVocabulary.size(), reviewId[0] -1, numOfTotalTokens[0]);
         ListIterator<String> vocabIter = sortedVocabulary.listIterator();
         String prevWord = "";
 
@@ -245,15 +250,19 @@ public class SlowIndexWriter
         System.out.println(dict.concatStr);
         System.out.println(Arrays.toString(dict.blockArray));
         System.out.println(Arrays.toString(dict.dictionary));
-        System.out.println();
-        System.out.println(numOfTotalTokens[0]);
-        System.out.println(reviewId[0] - 1);
-        System.out.println(wordCountTotal);
+        System.out.println(dict.tokenSizeOfReviews);
+//        System.out.println();
+//        System.out.println(numOfTotalTokens[0]);
+//        System.out.println(reviewId[0] - 1);
+//        System.out.println(wordCountTotal);
 //        System.out.println(wordInReviewsCount);
-        System.out.println(reviewsWordIsIn);
+//        System.out.println(reviewsWordIsIn);
 //        System.out.println(countOfWordInReview);
 //        System.out.println(reviewsMetaData);
 //        System.out.println(sortedVocabulary);
+
+        dict.writeDictToDisk(dir);
+
     }
 
     /**

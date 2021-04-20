@@ -1,6 +1,8 @@
 package webdata;
 
-public class Dictionary
+import java.io.*;
+
+public class Dictionary implements Serializable
 {
     public String concatStr = "";
     public int[] blockArray;
@@ -83,6 +85,89 @@ public class Dictionary
 
         metaDataPtrArray = new int[amountOfReviews];
         tokenSizeOfReviews = amountOfTokens;
+    }
+
+    public Dictionary(int amountOfTokens, String concatStr, int[] blockArray, int[] dictionary, int[]metaDataPtrArray)
+    {
+        this.tokenSizeOfReviews = amountOfTokens;
+        this.concatStr = concatStr;
+        this.blockArray = blockArray;
+        this.dictionary = dictionary;
+        this.metaDataPtrArray = metaDataPtrArray;
+    }
+
+    /**
+     * writes this dictionary to a file in the given directory
+     * @param dir path to directory where dictionary should be written to
+     */
+    public void writeDictToDisk(String dir)
+    {
+        /*
+        1) open file and stream
+        2) write concatStr
+        3) write tokenSizeOfReviews
+        4) for each (blockArr, dictionary, metaDataPtrArray):
+            4.1) write length of array to disk (???) maybe just write the needed values
+            4.2) write each int to file
+         */
+        //TODO: take care of path properly, not sure this will work properly on linux
+        String path = dir.concat("\\myDict");
+
+        /*-------------------- writing ints and string --------------------*/
+//        DataOutputStream dos = null;
+//        FileOutputStream fos = null;
+//
+//        try
+//        {
+//            fos = new FileOutputStream(path);
+//            dos  = new DataOutputStream(fos);
+//
+//            dos.writeInt(concatStr.length());
+//            dos.writeChars(concatStr);
+//
+//            dos.writeInt(tokenSizeOfReviews);
+//
+//            dos.writeInt(blockArray.length);
+//            for (int i: blockArray)
+//            {
+//                dos.writeInt(i);
+//            }
+//
+//            dos.writeInt(dictionary.length);
+//            for (int i: dictionary)
+//            {
+//                dos.writeInt(i);
+//            }
+//
+//            dos.writeInt(metaDataPtrArray.length);
+//            for (int i: metaDataPtrArray)
+//            {
+//                dos.writeInt(i);
+//            }
+//
+//            dos.flush();
+//        }
+//        catch (IOException e) { e.printStackTrace(); }
+//        finally
+//        {
+//            Utils.safelyCloseStreams(fos, dos);
+//        }
+
+        /*-------------------- writing object --------------------*/
+        FileOutputStream fos = null;
+        ObjectOutputStream oos = null;
+        try
+        {
+            fos = new FileOutputStream(path);
+            oos = new ObjectOutputStream(fos);
+
+            oos.writeObject(this);
+        }
+        catch (IOException e) { e.printStackTrace(); }
+        finally
+        {
+            Utils.safelyCloseStreams(fos, oos);
+        }
     }
 
     /**
