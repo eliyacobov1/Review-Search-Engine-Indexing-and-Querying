@@ -8,6 +8,7 @@ import java.io.*;
 public class IndexReader
 {
     public Dictionary dictionary; //TODO: make private
+    private static final int METADATA_ENTRY_SIZE = 30; // size of metadata entry in bytes TODO: update according to actual size
 
     /**
      * reads an array of ints that was previously saved to disk. how much to read is stored before the data itself.
@@ -34,55 +35,56 @@ public class IndexReader
         String path = dir.concat("\\myDict");
 
         /*-------------------- reading ints and string --------------------*/
-//        DataInputStream dis = null;
-//        FileInputStream fis = null;
-//
-//        try
-//        {
-//            fis = new FileInputStream(path);
-//            dis = new DataInputStream(fis);
-//            int concatStrLen = dis.readInt();
-//            StringBuilder sb = new StringBuilder();
-//            for (int i = 0 ; i < concatStrLen; i++)
-//            {
-//                sb.append(dis.readChar());
-//            }
-//            String concatStr = sb.toString();
-//
-//            int tokenSizeOfReviews = dis.readInt();
-//
-//            int[] blockArray = readIntArray(dis);
-//            int[] dict = readIntArray(dis);
-//            int[] metaDataPtrArray = readIntArray(dis);
-//            dictionary = new Dictionary(tokenSizeOfReviews, concatStr, blockArray, dict, metaDataPtrArray);
-//        }
-//        catch (IOException e)
-//        {
-//            e.printStackTrace();
-//        }
-//        finally
-//        {
-//            Utils.safelyCloseStreams(fis, dis);
-//        }
-
-        /*-------------------- reading object --------------------*/
-        InputStream fis = null;
-        ObjectInputStream ois = null;
+        DataInputStream dis = null;
+        FileInputStream fis = null;
 
         try
         {
             fis = new FileInputStream(path);
-            ois = new ObjectInputStream(fis);
-            dictionary = (Dictionary) ois.readObject();
+            dis = new DataInputStream(fis);
+            int concatStrLen = dis.readInt();
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0 ; i < concatStrLen; i++)
+            {
+                sb.append(dis.readChar());
+            }
+            String concatStr = sb.toString();
+
+            int tokenSizeOfReviews = dis.readInt();
+
+            int amountOfReviews = dis.readInt();
+
+            int[] blockArray = readIntArray(dis);
+            int[] dict = readIntArray(dis);
+            dictionary = new Dictionary(tokenSizeOfReviews, concatStr, blockArray, dict, amountOfReviews);
         }
-        catch (IOException | ClassNotFoundException e)
+        catch (IOException e)
         {
             e.printStackTrace();
         }
         finally
         {
-            Utils.safelyCloseStreams(fis, ois);
+            Utils.safelyCloseStreams(fis, dis);
         }
+
+        /*-------------------- reading object --------------------*/
+//        InputStream fis = null;
+//        ObjectInputStream ois = null;
+//
+//        try
+//        {
+//            fis = new FileInputStream(path);
+//            ois = new ObjectInputStream(fis);
+//            dictionary = (Dictionary) ois.readObject();
+//        }
+//        catch (IOException | ClassNotFoundException e)
+//        {
+//            e.printStackTrace();
+//        }
+//        finally
+//        {
+//            Utils.safelyCloseStreams(fis, ois);
+//        }
 
     }
 
@@ -242,12 +244,15 @@ public class IndexReader
      */
     private int getMetaPtr(int reviewId)
     {
-        if (reviewId > dictionary.metaDataPtrArray.length)
+//        if (reviewId > dictionary.metaDataPtrArray.length)
+        if (reviewId > dictionary.amountOfReviews)
         {
             return -1;
         }
-        return dictionary.metaDataPtrArray[reviewId];
+//        return dictionary.metaDataPtrArray[reviewId];
+        return METADATA_ENTRY_SIZE * reviewId;
     }
+
 
     // ---------------------------------- User API ----------------------------------
 
@@ -413,7 +418,7 @@ public class IndexReader
      */
     public int getNumberOfReviews()
     {
-        return dictionary.metaDataPtrArray.length;
+        return dictionary.amountOfReviews;
     }
 
     /**

@@ -8,8 +8,9 @@ public class Dictionary implements Serializable
     public int[] blockArray;
     //    public int[][] dictionary;      // for 2d array implementation
     public int[] dictionary;      // for 1d array implementation
-    public int[] metaDataPtrArray;
+//    public int[] metaDataPtrArray; // no need for this since metadata entries have constant size
     public int tokenSizeOfReviews;
+    public int amountOfReviews;
 
     int blockIndex = 0;     // for keeping track in block array
     int dictIndex = 0;      // for keeping track in dictionary array
@@ -83,17 +84,18 @@ public class Dictionary implements Serializable
                 amountOfMiddleOfBlockWords *ENTRIES_FOR_MIDDLE;
         dictionary = new int[totalSizeOfDict+1];
 
-        metaDataPtrArray = new int[amountOfReviews];
+//        metaDataPtrArray = new int[amountOfReviews];
         tokenSizeOfReviews = amountOfTokens;
     }
 
-    public Dictionary(int amountOfTokens, String concatStr, int[] blockArray, int[] dictionary, int[]metaDataPtrArray)
+    public Dictionary(int amountOfTokens, String concatStr, int[] blockArray, int[] dictionary, int amountOfReviews)
     {
         this.tokenSizeOfReviews = amountOfTokens;
         this.concatStr = concatStr;
         this.blockArray = blockArray;
         this.dictionary = dictionary;
-        this.metaDataPtrArray = metaDataPtrArray;
+        this.amountOfReviews = amountOfReviews;
+//        this.metaDataPtrArray = metaDataPtrArray;
     }
 
     /**
@@ -106,7 +108,8 @@ public class Dictionary implements Serializable
         1) open file and stream
         2) write concatStr
         3) write tokenSizeOfReviews
-        4) for each (blockArr, dictionary, metaDataPtrArray):
+        4) write amountOfReviews
+        4) for each (blockArr, dictionary):
             4.1) write length of array to disk (???) maybe just write the needed values
             4.2) write each int to file
          */
@@ -114,60 +117,56 @@ public class Dictionary implements Serializable
         String path = dir.concat("\\myDict");
 
         /*-------------------- writing ints and string --------------------*/
-//        DataOutputStream dos = null;
-//        FileOutputStream fos = null;
-//
-//        try
-//        {
-//            fos = new FileOutputStream(path);
-//            dos  = new DataOutputStream(fos);
-//
-//            dos.writeInt(concatStr.length());
-//            dos.writeChars(concatStr);
-//
-//            dos.writeInt(tokenSizeOfReviews);
-//
-//            dos.writeInt(blockArray.length);
-//            for (int i: blockArray)
-//            {
-//                dos.writeInt(i);
-//            }
-//
-//            dos.writeInt(dictionary.length);
-//            for (int i: dictionary)
-//            {
-//                dos.writeInt(i);
-//            }
-//
-//            dos.writeInt(metaDataPtrArray.length);
-//            for (int i: metaDataPtrArray)
-//            {
-//                dos.writeInt(i);
-//            }
-//
-//            dos.flush();
-//        }
-//        catch (IOException e) { e.printStackTrace(); }
-//        finally
-//        {
-//            Utils.safelyCloseStreams(fos, dos);
-//        }
-
-        /*-------------------- writing object --------------------*/
+        DataOutputStream dos = null;
         FileOutputStream fos = null;
-        ObjectOutputStream oos = null;
+
         try
         {
             fos = new FileOutputStream(path);
-            oos = new ObjectOutputStream(fos);
+            dos  = new DataOutputStream(fos);
 
-            oos.writeObject(this);
+            dos.writeInt(concatStr.length());
+            dos.writeChars(concatStr);
+
+            dos.writeInt(tokenSizeOfReviews);
+
+            dos.writeInt(amountOfReviews);
+
+            dos.writeInt(blockArray.length);
+            for (int i: blockArray)
+            {
+                dos.writeInt(i);
+            }
+
+            dos.writeInt(dictionary.length);
+            for (int i: dictionary)
+            {
+                dos.writeInt(i);
+            }
+
+            dos.flush();
         }
         catch (IOException e) { e.printStackTrace(); }
         finally
         {
-            Utils.safelyCloseStreams(fos, oos);
+            Utils.safelyCloseStreams(fos, dos);
         }
+
+        /*-------------------- writing object --------------------*/
+//        FileOutputStream fos = null;
+//        ObjectOutputStream oos = null;
+//        try
+//        {
+//            fos = new FileOutputStream(path);
+//            oos = new ObjectOutputStream(fos);
+//
+//            oos.writeObject(this);
+//        }
+//        catch (IOException e) { e.printStackTrace(); }
+//        finally
+//        {
+//            Utils.safelyCloseStreams(fos, oos);
+//        }
     }
 
     /**

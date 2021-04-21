@@ -1,9 +1,6 @@
 package webdata;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.util.*;
 
 public class SlowIndexWriter
@@ -168,6 +165,8 @@ public class SlowIndexWriter
 
     after processing all reviews - build dictionary and index.
      */
+        //TODO: if dir doesn't exist create it. open files.
+        //TODO: close input file inputFile. check where this should be done.
         HashMap<String, Integer> wordCountTotal = new HashMap<>();
         HashMap<String, Integer> wordInReviewsCount = new HashMap<>();
         HashMap<String, ArrayList<Integer>> reviewsWordIsIn = new HashMap<>();
@@ -183,6 +182,7 @@ public class SlowIndexWriter
         Collections.sort(sortedVocabulary);
 //        System.out.println(sortedVocabulary);
 //        System.out.println(sortedVocabulary.size());
+
         //--------------------------------------------------
         // sanity check for dictionary creation
         // background, backpack, backpacking, backwards, bad, badly, badminton, bag, baggage, bake, baker, balcony, bald, ball, ballet
@@ -239,18 +239,18 @@ public class SlowIndexWriter
         }
 
         // save metadata of reviews. write to file and save pointer in dictionary
+        dict.amountOfReviews = reviewId[0] - 1;
         ArrayList<String> meta;
         for (int i = 0; i < reviewId[0]-1; i++) //TODO: check boundary - maybe reviewId[0] and not -1
         {
             meta = reviewsMetaData.get(i);
-            int metaPtr = -11;      // TODO: write meta to file, get pointer
-            dict.metaDataPtrArray[i] = metaPtr;
+            // TODO: write meta to file
         }
 
-        System.out.println(dict.concatStr);
-        System.out.println(Arrays.toString(dict.blockArray));
-        System.out.println(Arrays.toString(dict.dictionary));
-        System.out.println(dict.tokenSizeOfReviews);
+//        System.out.println(dict.concatStr);
+//        System.out.println(Arrays.toString(dict.blockArray));
+//        System.out.println(Arrays.toString(dict.dictionary));
+//        System.out.println(dict.tokenSizeOfReviews);
 //        System.out.println();
 //        System.out.println(numOfTotalTokens[0]);
 //        System.out.println(reviewId[0] - 1);
@@ -268,7 +268,25 @@ public class SlowIndexWriter
     /**
      * Delete all index files by removing the given directory
      */
-    public void removeIndex(String dir) {}
+    public void removeIndex(String dir)
+    {
+        File directory = new File(dir);
+        File[] entries = directory.listFiles();
+        if (entries != null)
+        {
+            for (File file: entries)
+            {
+                if (!file.delete())
+                {
+                    System.out.println("fail to delete file");
+                }
+            }
+        }
+        if (!directory.delete())
+        {
+            System.out.println("fail to delete directory");
+        }
+    }
 
 }
 
