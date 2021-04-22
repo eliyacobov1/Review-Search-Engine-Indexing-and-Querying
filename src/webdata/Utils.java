@@ -6,6 +6,9 @@ import java.util.ArrayList;
 
 public class Utils
 {
+    public static final String DICTIONARY_NAME = "dictionary";
+    public static final String INVERTED_INDEX_NAME = "inverted_index";
+
     /**
      * safely closes the 2 given streams
      */

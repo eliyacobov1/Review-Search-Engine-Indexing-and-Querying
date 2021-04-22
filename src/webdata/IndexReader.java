@@ -1,6 +1,9 @@
 package webdata;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.io.*;
@@ -8,7 +11,8 @@ import java.io.*;
 
 public class IndexReader
 {
-    public Dictionary dictionary; //TODO: make private
+    private static final int POINTER_TO_AFTER_DICT = -1;
+    private Dictionary dictionary;
     private static final int METADATA_ENTRY_SIZE = 30; // size of metadata entry in bytes TODO: update according to actual size
 
     private final String invertedIndexFileName = "inverted_index";
@@ -57,16 +61,15 @@ public class IndexReader
      */
     private void loadDictionary(String dir)
     {
-        //TODO: take care of path properly, not sure this will work properly on linux
-        String path = dir.concat("\\myDict");
 
+        Path pathToDictionary = Paths.get(dir).resolve(Utils.DICTIONARY_NAME);
         /*-------------------- reading ints and string --------------------*/
         DataInputStream dis = null;
         FileInputStream fis = null;
 
         try
         {
-            fis = new FileInputStream(path);
+            fis = new FileInputStream(String.valueOf(pathToDictionary));
             dis = new DataInputStream(fis);
             int concatStrLen = dis.readInt();
             StringBuilder sb = new StringBuilder();
@@ -123,10 +126,10 @@ public class IndexReader
     {
         loadDictionary(dir);
         numPaddedZeroes = dictionary.numPaddedZeroes;
-        //TODO add dir to invertedIndexFileName
+        Path pathToInvertedIndex = Paths.get(dir).resolve(invertedIndexFileName);
         try
         {
-            invertedIndexFile = new RandomAccessFile(invertedIndexFileName, "r");
+            invertedIndexFile = new RandomAccessFile(String.valueOf(pathToInvertedIndex), "r");
         }
         catch (IOException e) { e.printStackTrace(); }
     }
@@ -149,7 +152,7 @@ public class IndexReader
      * @param token word to search for
      * @return int index of the block in the dictionary that token can be in. -1 if token isn't in dictionary
      */
-    public int findBlockOfToken(String token) //TODO change to private
+    private int findBlockOfToken(String token)
     {
         int start = 0;
         int end = dictionary.blockArray.length - 1;
@@ -220,7 +223,7 @@ public class IndexReader
      * @param token the token we are searching for
      * @return offset of the token in the block. -1 if token is not in the block
      */
-    public int getLocationOfTokenInBlock(int blockIndex, String token) //TODO change to private
+    private int getLocationOfTokenInBlock(int blockIndex, String token)
     {
         String word = getFirstWordOfBlock(blockIndex);
         if (token.equals(word))
@@ -374,19 +377,64 @@ public class IndexReader
     }
 
     /**
-     * returns the posting list pointer of given token. if token is not in dictionary - returns -1
+     * returns the posting list pointer of given token and the one of the next token in dictionary.
+     * if token is not in dictionary - returns null
      * @param token token to search for in dictionary
-     * @return posting list pointer of given token. if token is not in dictionary - returns -1
+     * @return posting list pointers of given token and the following one.
+     * if token is not in dictionary - returns null
      */
-    private int getPostingListPrt(String token)
+    private int[] getPostingListPtr(String token)
     {
+        int[] pair = new int[2];
         int blockIndex = findBlockOfToken(token);
         int wordOffset = getLocationOfTokenInBlock(blockIndex, token);
-        if (wordOffset == -1)
-            return -1;
-        if (wordOffset == 0 || wordOffset == Dictionary.K - 1)
-            return dictionary.getPostingPtr(blockIndex, wordOffset, true);
-        return dictionary.getPostingPtr(blockIndex, wordOffset, false);
+
+        // if token is last word in dictionary - return postingPrt, -1
+        if (blockIndex == dictionary.blockArray.length - 1 &&
+                dictionary.getWordRow(blockIndex, wordOffset) + Dictionary.POSTING_INDEX_MIDDLE >= dictionary.dictionary.length - 1)
+        {
+            if (wordOffset == 0 || wordOffset == Dictionary.K - 1) // check if is first or last word of block
+                pair[0] = dictionary.getPostingPtr(blockIndex, wordOffset, true);
+            else
+                pair[0] = dictionary.getPostingPtr(blockIndex, wordOffset, false);
+            pair[1] = POINTER_TO_AFTER_DICT;
+            System.out.println(Arrays.toString(pair));
+            return pair;
+        }
+
+        switch (wordOffset)
+        {
+            case -1: // token not found
+                return null;
+            case 0: // first word of block, next word is in same block
+                pair[0] = dictionary.getPostingPtr(blockIndex, wordOffset, true);
+                pair[1] = dictionary.getPostingPtr(blockIndex, wordOffset+1, false);
+                break;
+            case Dictionary.K - 1: // last word of block, next is first of next block
+                pair[0] = dictionary.getPostingPtr(blockIndex, wordOffset, true);
+                pair[1] = dictionary.getPostingPtr(blockIndex+1, 0, true);
+                break;
+            case Dictionary.K-2: // before last word of block, next is in same block but last
+                pair[0] = dictionary.getPostingPtr(blockIndex, wordOffset, false);
+                pair[1] = dictionary.getPostingPtr(blockIndex, wordOffset+1, true);
+                break;
+            default: // both are in same block
+                pair[0] = dictionary.getPostingPtr(blockIndex, wordOffset, false);
+                pair[1] = dictionary.getPostingPtr(blockIndex, wordOffset+1, false);
+        }
+//        if (wordOffset == -1)
+//            return null;
+//        if (wordOffset == 0 || wordOffset == Dictionary.K - 1) // check if is first or last word of block
+//            pair[0] = dictionary.getPostingPtr(blockIndex, wordOffset, true);
+//        else
+//            pair[0] = dictionary.getPostingPtr(blockIndex, wordOffset, false);
+//
+//        //TODO: take care of last word!!!!!!!!
+//        if (wordOffset + 1 == Dictionary.K - 1 || (wordOffset + 1) % Dictionary.K == 0)
+//            pair[1] = dictionary.getPostingPtr(blockIndex, wordOffset+1, true);
+//        else
+//            pair[1] = dictionary.getPostingPtr(blockIndex, wordOffset+1, false);
+        return pair;
     }
 
     /**
@@ -395,8 +443,8 @@ public class IndexReader
      */
     public int getTokenFrequency(String token)
     {
-        int postingPtr = getPostingListPrt(token);
-        if (postingPtr == -1)
+        int[] postingPtr = getPostingListPtr(token);
+        if (postingPtr == null)
         {
             return 0;
         }
@@ -433,9 +481,8 @@ public class IndexReader
      */
      public Enumeration<Integer> getReviewsWithToken(String token)
      {
-         int postingPtr = getPostingListPrt(token);
-         int nextPostingPrt = -1; //TODO: get posting pointer of next token (take care of edge case - last word in dict)
-         if (postingPtr == -1)
+         int[] postingListPtrs = getPostingListPtr(token);
+         if (postingListPtrs == null)
          {
              return Collections.emptyEnumeration();
          }
@@ -444,18 +491,18 @@ public class IndexReader
              //TODO: read from invertedIndex and create enumeration for output
              try
              {
-                 String res = readInvertedIndex(postingPtr, nextPostingPrt);
-                 ArrayList<Integer> tokenReviews = Utils.decodeDelta(res);
-                 System.out.println(tokenReviews);
-                 return null;
-//                 return (Enumeration<Integer>) tokenReviews;
+                 if (postingListPtrs[1] == POINTER_TO_AFTER_DICT)
+                 {
+                     // token is the last word in the dictionary so we need don't have pointer to next word's
+                     // posting list to use as border for reading
+                     postingListPtrs[1] = -111;// TODO: do we have a way to know where the end of the file is? of other solution for this case
+                 }
+                 String binaryResult = readInvertedIndex(postingListPtrs[0], postingListPtrs[1]);
+                 ArrayList<Integer> tokenReviews = Utils.decodeDelta(binaryResult);
+                 return Collections.enumeration(tokenReviews);
              }
-             catch (IOException e)
-             {
-                 e.printStackTrace();
-                 //TODO: what happens here?
-             }
-             return null;
+             catch (IOException e) { e.printStackTrace(); }
+             return Collections.emptyEnumeration();
          }
      }
 
@@ -484,8 +531,8 @@ public class IndexReader
      */
     public Enumeration<Integer> getProductReviews(String productId)
     {
-        int postingPtr = getPostingListPrt(productId);
-        if (postingPtr == -1)
+        int[] postingPtr = getPostingListPtr(productId);
+        if (postingPtr == null)
         {
             return Collections.emptyEnumeration();
         }

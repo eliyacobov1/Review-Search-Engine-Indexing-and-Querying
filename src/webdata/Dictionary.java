@@ -1,12 +1,13 @@
 package webdata;
 
 import java.io.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class Dictionary implements Serializable
 {
     public String concatStr = "";
     public int[] blockArray;
-    //    public int[][] dictionary;      // for 2d array implementation
     public int[] dictionary;      // for 1d array implementation
 //    public int[] metaDataPtrArray; // no need for this since metadata entries have constant size
     public int tokenSizeOfReviews;
@@ -64,28 +65,11 @@ public class Dictionary implements Serializable
     {
         int amountOfBlocks = (int) Math.ceil(((double) vocabularySize / K));
         blockArray = new int[amountOfBlocks];
-
-        // code for initiating 2d dictionary array
-//        dictionary = new int[vocabularySize][];
-//        for (int i = 0; i < amountOfBlocks; i++)
-//        {
-//            if (i % K == 0 || (i + 1) % K == 0)
-//            {
-//                dictionary[i] = new int[ENTRIES_FOR_FIRST_LAST];
-//            }
-//            else
-//            {
-//                dictionary[i] = new int[ENTRIES_FOR_MIDDLE];
-//            }
-//        }
-
-        // if we want 1d array
         int amountOfMiddleOfBlockWords = vocabularySize - 2*amountOfBlocks;
         int totalSizeOfDict = amountOfBlocks*ENTRIES_FOR_FIRST_LAST + amountOfBlocks*ENTRIES_FOR_FIRST_LAST +
                 amountOfMiddleOfBlockWords *ENTRIES_FOR_MIDDLE;
         dictionary = new int[totalSizeOfDict+1];
 
-//        metaDataPtrArray = new int[amountOfReviews];
         tokenSizeOfReviews = amountOfTokens;
     }
 
@@ -97,7 +81,6 @@ public class Dictionary implements Serializable
         this.dictionary = dictionary;
         this.amountOfReviews = amountOfReviews;
         this.numPaddedZeroes = numPaddedZeroes;
-//        this.metaDataPtrArray = metaDataPtrArray;
     }
 
     /**
@@ -115,16 +98,14 @@ public class Dictionary implements Serializable
             4.1) write length of array to disk (???) maybe just write the needed values
             4.2) write each int to file
          */
-        //TODO: take care of path properly, not sure this will work properly on linux
-        String path = dir.concat("\\myDict");
-
+        Path pathToDictionary = Paths.get(dir).resolve(Utils.DICTIONARY_NAME);
         /*-------------------- writing ints and string --------------------*/
         DataOutputStream dos = null;
         FileOutputStream fos = null;
 
         try
         {
-            fos = new FileOutputStream(path);
+            fos = new FileOutputStream(String.valueOf(pathToDictionary));
             dos  = new DataOutputStream(fos);
 
             dos.writeInt(concatStr.length());
@@ -251,7 +232,7 @@ public class Dictionary implements Serializable
      * @param wordOffset offset of the word in the block
      * @return pointer to the beginning of the wanted "row"
      */
-    private int getWordRow(int blockIndex, int wordOffset)
+    protected int getWordRow(int blockIndex, int wordOffset)
     {
         int beginningOfBlock = blockIndex * Dictionary.LINE_LENGTH;
         int offset = 0;

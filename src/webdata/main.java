@@ -3,14 +3,21 @@ package webdata;
 
 import java.io.*;
 import java.util.Arrays;
+import java.util.Enumeration;
 
 public class main {
 
     public static void main(String[] args) throws IOException {
         SlowIndexWriter sw = new SlowIndexWriter();
-        sw.slowWrite("C:\\Users\\USER\\IdeaProjects\\webdata_project\\src\\webdata\\100.txt", "C:\\Users\\USER\\Desktop\\webdata_index");
+        sw.slowWrite("C:\\Users\\USER\\IdeaProjects\\webdata_project\\src\\webdata\\2.txt", "C:\\Users\\USER\\Desktop\\webdata_index");
         IndexReader ir = new IndexReader("C:\\Users\\USER\\Desktop\\webdata_index");
-        System.out.println(ir.getReviewsWithToken(""));
+//        System.out.println(ir.getReviewsWithToken("balconyyyyy"));
+        Enumeration<Integer> res = ir.getReviewsWithToken("a");
+        System.out.println(res.hasMoreElements());
+        while (res.hasMoreElements())
+        {
+            System.out.println(res.nextElement());
+        }
 ////        String[] w = new String[]{"background", "backpack", "backpacking", "backwards", "bad", "badly", "badminton", "bag", "baggage", "bake", "baker", "balcony", "bald", "ball", "ballet"};
 ////        String[] w = new String[]{"background", "backpack", "backpacking", "backwards", "bad", "badly", "badminton", "bag", "baggage", "bake", "baker", "balcony"};
 ////        for (String s : w)
