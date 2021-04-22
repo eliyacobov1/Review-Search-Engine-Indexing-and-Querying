@@ -6,6 +6,35 @@ import java.util.*;
 public class SlowIndexWriter
 {
     public Dictionary dict;//TODO: delete
+    private RandomAccessFile outputFile;
+    private StringBuilder accumulatedString = new StringBuilder();
+    private int pos = 0;
+
+    /**
+     * Name of the inverted index output file
+     */
+    private static String outputFileName = "Test";
+
+    /**
+     * represents the amount of extra zeroes on the left portion of the output-file.
+     * When reading from the file, these bits will be ignored (.e.g, if numPaddedZeroes=3
+     * and output-file bits are 00011011 then only the bits 11011 will be regarded).
+     */
+    private int numPaddedZeroes;
+
+
+
+    /**
+     * this function writes the accumulated string ,which represents the encoded
+     * concatenation of the inverted index of the token collection, into the output-file
+     * in the form of binary data
+     */
+    private void writeInvertedIndex() throws IOException {
+        outputFile.seek(0);
+        outputFile.write(Utils.binaryStringToByte(accumulatedString.toString()));
+    }
+
+
     /**
      * creates and returns a list containing the meta data of a review
      * @param productId String representing the productId of the product reviewed
@@ -139,30 +168,25 @@ public class SlowIndexWriter
      * dir is the directory in which all index files will be created
      * if the directory does not exist, it should be created
      */
-    public void slowWrite(String inputFile, String dir){
+    public void slowWrite(String inputFile, String dir) throws IOException {
     /*
     data structures:
     hashmaps:
-
     wordCountTotal - how many times did word appear in total
     wordInReviews - how many reviews did word appear in (maybe not needed, this is the same as len(reviewsWordIsIn))
     reviewsWordIsIn - list of reviewId's word appears in
     countOfWordInReview - list of how many times did word appear in a review (matching indices to reviewsWordIsIn)
     *i.e reviewsWordIsIn["dog"] = (1,5,12),  countOfWordInReview["dog"] = (3,1,6)
-
     Lists:
     reviewMetaData - productId, score, numerator, denominator, length
-
     counters:
     numOfReviews - total amount of reviews processed
     numOfTotalTokens - total amount of tokens in data
-
     flow:
     1) read review from input File.
     2) preprocess text (break into tokens and normalize)
     3) update data structures and counters
     4) repeat until end of inputFile
-
     after processing all reviews - build dictionary and index.
      */
         //TODO: if dir doesn't exist create it. open files.
@@ -176,6 +200,8 @@ public class SlowIndexWriter
         int[] reviewId = {1};      // TODO: do we start from 0 or 1? if from 1 - take in account in dictionary
         processReviews(wordCountTotal, wordInReviewsCount, reviewsWordIsIn, countOfWordInReview, reviewsMetaData,
                 numOfTotalTokens, reviewId, inputFile);
+        String path = String.format("%s\\%s", dir, outputFileName);
+        outputFile = new RandomAccessFile(path, "rw");
 
         // sort vocabulary to insert into dictionary and index
         ArrayList<String> sortedVocabulary = new ArrayList<>(wordCountTotal.keySet());
@@ -219,9 +245,21 @@ public class SlowIndexWriter
         {
             int index = vocabIter.nextIndex();
             String word = vocabIter.next();
-            int freq = wordCountTotal.get(word);
             // write to index and save pointer
-            int postingPrt = -1; //TODO: missing
+            ArrayList<Integer> invertedIndex = reviewsWordIsIn.get(word);
+            ArrayList<Integer> wordCount = countOfWordInReview.get(word);
+            // write to index and save pointer
+            int postingPrt = pos;
+            for(int i = 0; i < invertedIndex.size(); i++){
+                int diff = invertedIndex.get(i)- (i > 0 ? invertedIndex.get(i-1) : 0);
+                String encodedIndex = Utils.gammaRepr(diff, true);
+                String encodedCount = Utils.gammaRepr(wordCount.get(i), true);
+                accumulatedString.append(encodedIndex); // write next index to file
+                accumulatedString.append(encodedCount); // write token count to file
+                pos += encodedIndex.length();
+                pos += encodedCount.length();
+            }
+            int freq = wordCountTotal.get(word);
             int prefixLen = commonPrefix(word, prevWord);
             if (index % Dictionary.K == 0)      // first word of block
             {
@@ -237,6 +275,8 @@ public class SlowIndexWriter
             }
             prevWord = word;
         }
+        numPaddedZeroes = 8 - accumulatedString.length() % 8;
+        writeInvertedIndex();
 
         // save metadata of reviews. write to file and save pointer in dictionary
         dict.amountOfReviews = reviewId[0] - 1;
@@ -244,7 +284,7 @@ public class SlowIndexWriter
         for (int i = 0; i < reviewId[0]-1; i++) //TODO: check boundary - maybe reviewId[0] and not -1
         {
             meta = reviewsMetaData.get(i);
-            // TODO: write meta to file
+            // TODO: write meta to file:
         }
 
 //        System.out.println(dict.concatStr);
@@ -292,17 +332,13 @@ public class SlowIndexWriter
 
 /*
 1) Dictionary
-
 concatStr:
 concatenated string of words with k-1 in k coding.
-
 for example: 2 in 3
 background|pack|ing || backwards|d|ly || badminton|g|gage || bake|r|lacony || bald|l|et
 0                      17                29                  43               53
-
 blockArray:
 holds "pointers" (indices in concatStr) to the beginning of blocks
-
 index   | block ptr
 --------|----------
 0       |0
@@ -310,11 +346,8 @@ index   | block ptr
 2       |29
 3       |43
 4       |53
-
-
 fullArray:
 hold rest of data: length, prefix, termPtr. (Also included Freq (#appearances in all reviews) and postingPtr)
-
 Len     | prefix | termPtr
 --------|--------|--------
 10      |        | 0
@@ -329,7 +362,6 @@ Len     | prefix | termPtr
 4       |        | 43
 5       | 4      |
         | 2      |
-
 Binary search is done on blockArray to find matching block.
 i.e: find("badly") -
 does binary search on blockArray to find that "badly" is in the second block (the one the starts at concatStr[17]).
@@ -338,12 +370,8 @@ with the word that starts at concatStr[blockArr[(start+end)//2 + 1]]
 for example: start = 0, end = 3. mid = (start+end)//2. compare("badly", concatStr[blockArr[mid]]).
 if "badly" > concatStr[blockArr[mid]]: compare("badly", concatStr[blockArr[mid] + 1]). (*if < continue search with end = mid)
 if "badly" < concatStr[blockArr[mid] + 1]: "badly" is in this block. (* if > continue search with start = mid)
-
 then needs to find "badly" in block. TBD...
-
-
 2) Inverted index
-
 for each word in dictionary we need an entry in inverted index holding:
 sequence of (reviewId, #times word is in this review), in ascending order of reviewId
 for example:

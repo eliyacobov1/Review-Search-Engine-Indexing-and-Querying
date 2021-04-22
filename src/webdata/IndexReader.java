@@ -1,5 +1,6 @@
 package webdata;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.io.*;
@@ -9,6 +10,10 @@ public class IndexReader
 {
     public Dictionary dictionary; //TODO: make private
     private static final int METADATA_ENTRY_SIZE = 30; // size of metadata entry in bytes TODO: update according to actual size
+
+    private final String inveretedIndexFileName = "Test";
+    private RandomAccessFile invertedIndexFile = null;
+    private int numPaddedZeroes; //TODO: read from dictionary file
 
     /**
      * reads an array of ints that was previously saved to disk. how much to read is stored before the data itself.
@@ -24,6 +29,27 @@ public class IndexReader
         }
         return array;
     }
+
+    /**
+     * this function returns a string which represents the bit data
+     * stored in the output-file between the given start and end indexes
+     */
+    private String readInvertedIndex(int startPos, int endPos) throws IOException
+    {
+        startPos += numPaddedZeroes; // shift indexes in order to ignore redundant 0 bits
+        endPos += numPaddedZeroes;
+        invertedIndexFile.seek(startPos/8);
+        byte[] bytes = new byte[(int)(Math.ceil((endPos-startPos)/8.0))];
+        invertedIndexFile.read(bytes);
+        StringBuilder resBuilder = new StringBuilder();
+        for(byte n: bytes) resBuilder.append(String.format(
+                "%8s", Integer.toBinaryString(n & 0xff)
+        ));
+        String res = resBuilder.toString().replace(' ', '0');
+        res = res.substring(startPos % 8, (startPos % 8) + endPos-startPos+1);
+        return res;
+    }
+
 
     /**
      * reads the dictionary from the dist to memory
@@ -95,6 +121,14 @@ public class IndexReader
     public IndexReader(String dir)
     {
         loadDictionary(dir);
+        //TODO add dir to inveretedIndexFileName
+        try {
+            invertedIndexFile = new RandomAccessFile(inveretedIndexFileName, "r");
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
     }
 
 
@@ -402,6 +436,7 @@ public class IndexReader
      public Enumeration<Integer> getReviewsWithToken(String token)
      {
          int postingPtr = getPostingListPrt(token);
+         int nextPostingPrt = -1; //TODO: get posting pointer of next token (take care of edge case - last word in dict)
          if (postingPtr == -1)
          {
              return Collections.emptyEnumeration();
@@ -409,6 +444,17 @@ public class IndexReader
          else
          {
              //TODO: read from invertedIndex and create enumeration for output
+             try
+             {
+                 String res = readInvertedIndex(postingPtr, nextPostingPrt);
+                 ArrayList<Integer> tokenReviews = Utils.decodeDelta(res);
+                 return (Enumeration<Integer>) tokenReviews;
+             }
+             catch (IOException e)
+             {
+                 e.printStackTrace();
+                 //TODO: what happens here?
+             }
              return null;
          }
      }
