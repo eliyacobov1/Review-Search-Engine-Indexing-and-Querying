@@ -11,6 +11,7 @@ public class Dictionary implements Serializable
 //    public int[] metaDataPtrArray; // no need for this since metadata entries have constant size
     public int tokenSizeOfReviews;
     public int amountOfReviews;
+    public int numPaddedZeroes;
 
     int blockIndex = 0;     // for keeping track in block array
     int dictIndex = 0;      // for keeping track in dictionary array
@@ -59,7 +60,7 @@ public class Dictionary implements Serializable
     --------------------------------------------------------------------
      */
 
-    public Dictionary(int vocabularySize, int amountOfReviews, int amountOfTokens)
+    public Dictionary(int vocabularySize, int amountOfTokens)
     {
         int amountOfBlocks = (int) Math.ceil(((double) vocabularySize / K));
         blockArray = new int[amountOfBlocks];
@@ -88,13 +89,14 @@ public class Dictionary implements Serializable
         tokenSizeOfReviews = amountOfTokens;
     }
 
-    public Dictionary(int amountOfTokens, String concatStr, int[] blockArray, int[] dictionary, int amountOfReviews)
+    public Dictionary(int amountOfTokens, String concatStr, int[] blockArray, int[] dictionary, int amountOfReviews, int numPaddedZeroes)
     {
         this.tokenSizeOfReviews = amountOfTokens;
         this.concatStr = concatStr;
         this.blockArray = blockArray;
         this.dictionary = dictionary;
         this.amountOfReviews = amountOfReviews;
+        this.numPaddedZeroes = numPaddedZeroes;
 //        this.metaDataPtrArray = metaDataPtrArray;
     }
 
@@ -144,6 +146,7 @@ public class Dictionary implements Serializable
                 dos.writeInt(i);
             }
 
+            dos.writeInt(numPaddedZeroes);
             dos.flush();
         }
         catch (IOException e) { e.printStackTrace(); }

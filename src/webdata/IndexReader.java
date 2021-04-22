@@ -11,9 +11,9 @@ public class IndexReader
     public Dictionary dictionary; //TODO: make private
     private static final int METADATA_ENTRY_SIZE = 30; // size of metadata entry in bytes TODO: update according to actual size
 
-    private final String inveretedIndexFileName = "Test";
+    private final String invertedIndexFileName = "inverted_index";
     private RandomAccessFile invertedIndexFile = null;
-    private int numPaddedZeroes; //TODO: read from dictionary file
+    private int numPaddedZeroes;
 
     /**
      * reads an array of ints that was previously saved to disk. how much to read is stored before the data itself.
@@ -82,7 +82,8 @@ public class IndexReader
 
             int[] blockArray = readIntArray(dis);
             int[] dict = readIntArray(dis);
-            dictionary = new Dictionary(tokenSizeOfReviews, concatStr, blockArray, dict, amountOfReviews);
+            int amountOfPaddedZeros = dis.readInt();
+            dictionary = new Dictionary(tokenSizeOfReviews, concatStr, blockArray, dict, amountOfReviews, amountOfPaddedZeros);
         }
         catch (IOException e)
         {
@@ -121,14 +122,13 @@ public class IndexReader
     public IndexReader(String dir)
     {
         loadDictionary(dir);
-        //TODO add dir to inveretedIndexFileName
-        try {
-            invertedIndexFile = new RandomAccessFile(inveretedIndexFileName, "r");
-        }
-        catch (IOException e)
+        numPaddedZeroes = dictionary.numPaddedZeroes;
+        //TODO add dir to invertedIndexFileName
+        try
         {
-            e.printStackTrace();
+            invertedIndexFile = new RandomAccessFile(invertedIndexFileName, "r");
         }
+        catch (IOException e) { e.printStackTrace(); }
     }
 
 
@@ -278,12 +278,10 @@ public class IndexReader
      */
     private int getMetaPtr(int reviewId)
     {
-//        if (reviewId > dictionary.metaDataPtrArray.length)
         if (reviewId > dictionary.amountOfReviews)
         {
             return -1;
         }
-//        return dictionary.metaDataPtrArray[reviewId];
         return METADATA_ENTRY_SIZE * reviewId;
     }
 
@@ -448,7 +446,9 @@ public class IndexReader
              {
                  String res = readInvertedIndex(postingPtr, nextPostingPrt);
                  ArrayList<Integer> tokenReviews = Utils.decodeDelta(res);
-                 return (Enumeration<Integer>) tokenReviews;
+                 System.out.println(tokenReviews);
+                 return null;
+//                 return (Enumeration<Integer>) tokenReviews;
              }
              catch (IOException e)
              {

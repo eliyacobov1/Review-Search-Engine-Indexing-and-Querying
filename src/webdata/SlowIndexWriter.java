@@ -5,18 +5,17 @@ import java.util.*;
 
 public class SlowIndexWriter
 {
-    public Dictionary dict;//TODO: delete
-    private RandomAccessFile outputFile;
+    private RandomAccessFile invertedIndexFile = null;
     private StringBuilder accumulatedString = new StringBuilder();
     private int pos = 0;
 
     /**
      * Name of the inverted index output file
      */
-    private static String outputFileName = "Test";
+    private static String invertedIndexFileName = "inverted_index";
 
     /**
-     * represents the amount of extra zeroes on the left portion of the output-file.
+     * represents the amount of extra zeroes on the left portion of the invertedIndex-file.
      * When reading from the file, these bits will be ignored (.e.g, if numPaddedZeroes=3
      * and output-file bits are 00011011 then only the bits 11011 will be regarded).
      */
@@ -29,9 +28,17 @@ public class SlowIndexWriter
      * concatenation of the inverted index of the token collection, into the output-file
      * in the form of binary data
      */
-    private void writeInvertedIndex() throws IOException {
-        outputFile.seek(0);
-        outputFile.write(Utils.binaryStringToByte(accumulatedString.toString()));
+    private void writeInvertedIndex()
+    {
+        try
+        {
+            invertedIndexFile.seek(0);
+            invertedIndexFile.write(Utils.binaryStringToByte(accumulatedString.toString()));
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
     }
 
 
@@ -168,7 +175,7 @@ public class SlowIndexWriter
      * dir is the directory in which all index files will be created
      * if the directory does not exist, it should be created
      */
-    public void slowWrite(String inputFile, String dir) throws IOException {
+    public void slowWrite(String inputFile, String dir) {
     /*
     data structures:
     hashmaps:
@@ -191,6 +198,7 @@ public class SlowIndexWriter
      */
         //TODO: if dir doesn't exist create it. open files.
         //TODO: close input file inputFile. check where this should be done.
+        /*---------------------- <preprocess input> ----------------------*/
         HashMap<String, Integer> wordCountTotal = new HashMap<>();
         HashMap<String, Integer> wordInReviewsCount = new HashMap<>();
         HashMap<String, ArrayList<Integer>> reviewsWordIsIn = new HashMap<>();
@@ -200,12 +208,17 @@ public class SlowIndexWriter
         int[] reviewId = {1};      // TODO: do we start from 0 or 1? if from 1 - take in account in dictionary
         processReviews(wordCountTotal, wordInReviewsCount, reviewsWordIsIn, countOfWordInReview, reviewsMetaData,
                 numOfTotalTokens, reviewId, inputFile);
-        String path = String.format("%s\\%s", dir, outputFileName);
-        outputFile = new RandomAccessFile(path, "rw");
 
-        // sort vocabulary to insert into dictionary and index
         ArrayList<String> sortedVocabulary = new ArrayList<>(wordCountTotal.keySet());
-        Collections.sort(sortedVocabulary);
+        Collections.sort(sortedVocabulary); // sort vocabulary to insert into dictionary and index
+        /*---------------------- </preprocess input> ----------------------*/
+
+        /*-----------------  insert data into dictionary, inverted index and metadata file -----------------*/
+        /*------- <dictionary and inverted index> -------*/
+        String path = String.format("%s\\%s", dir, invertedIndexFileName);
+        try { invertedIndexFile = new RandomAccessFile(path, "rw"); }
+        catch (IOException e) { e.printStackTrace(); }
+
 //        System.out.println(sortedVocabulary);
 //        System.out.println(sortedVocabulary.size());
 
@@ -237,7 +250,7 @@ public class SlowIndexWriter
 //        System.out.println(sortedVocabulary.size());
 
 //        dict = new Dictionary(sortedVocabulary.size(), reviewId[0] -1, numOfTotalTokens[0]); //TODO: delete
-        Dictionary dict = new Dictionary(sortedVocabulary.size(), reviewId[0] -1, numOfTotalTokens[0]);
+        Dictionary dict = new Dictionary(sortedVocabulary.size(), numOfTotalTokens[0]);
         ListIterator<String> vocabIter = sortedVocabulary.listIterator();
         String prevWord = "";
 
@@ -275,17 +288,20 @@ public class SlowIndexWriter
             }
             prevWord = word;
         }
-        numPaddedZeroes = 8 - accumulatedString.length() % 8;
-        writeInvertedIndex();
-
-        // save metadata of reviews. write to file and save pointer in dictionary
         dict.amountOfReviews = reviewId[0] - 1;
+        dict.numPaddedZeroes = 8 - accumulatedString.length() % 8;
+        /*------- </dictionary and inverted index> -------*/
+
+        /*------------------ <metadata> ------------------*/
+        // save metadata of reviews
         ArrayList<String> meta;
         for (int i = 0; i < reviewId[0]-1; i++) //TODO: check boundary - maybe reviewId[0] and not -1
         {
             meta = reviewsMetaData.get(i);
             // TODO: write meta to file:
         }
+        /*------------------ </metadata> ------------------*/
+        /*----------------- </insert data into dictionary, inverted index and metadata file> -----------------*/
 
 //        System.out.println(dict.concatStr);
 //        System.out.println(Arrays.toString(dict.blockArray));
@@ -300,7 +316,8 @@ public class SlowIndexWriter
 //        System.out.println(countOfWordInReview);
 //        System.out.println(reviewsMetaData);
 //        System.out.println(sortedVocabulary);
-
+        /*----------------- <write dictionary and inverted index to disk> -----------------*/
+        writeInvertedIndex();
         dict.writeDictToDisk(dir);
 
     }
