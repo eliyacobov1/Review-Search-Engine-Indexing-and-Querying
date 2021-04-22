@@ -43,14 +43,14 @@ public class IndexReader
         startPos += numPaddedZeroes; // shift indexes in order to ignore redundant 0 bits
         endPos += numPaddedZeroes;
         invertedIndexFile.seek(startPos/8);
-        byte[] bytes = new byte[(int)(Math.ceil((endPos-startPos)/8.0))];
+        byte[] bytes = new byte[(int)(Math.ceil((endPos-startPos)/8.0)) + 1];
         invertedIndexFile.read(bytes);
         StringBuilder resBuilder = new StringBuilder();
         for(byte n: bytes) resBuilder.append(String.format(
                 "%8s", Integer.toBinaryString(n & 0xff)
         ));
         String res = resBuilder.toString().replace(' ', '0');
-        res = res.substring(startPos % 8, (startPos % 8) + endPos-startPos+1);
+        res = res.substring(startPos % 8, (startPos % 8) + endPos-startPos);
         return res;
     }
 
@@ -422,18 +422,7 @@ public class IndexReader
                 pair[0] = dictionary.getPostingPtr(blockIndex, wordOffset, false);
                 pair[1] = dictionary.getPostingPtr(blockIndex, wordOffset+1, false);
         }
-//        if (wordOffset == -1)
-//            return null;
-//        if (wordOffset == 0 || wordOffset == Dictionary.K - 1) // check if is first or last word of block
-//            pair[0] = dictionary.getPostingPtr(blockIndex, wordOffset, true);
-//        else
-//            pair[0] = dictionary.getPostingPtr(blockIndex, wordOffset, false);
-//
-//        //TODO: take care of last word!!!!!!!!
-//        if (wordOffset + 1 == Dictionary.K - 1 || (wordOffset + 1) % Dictionary.K == 0)
-//            pair[1] = dictionary.getPostingPtr(blockIndex, wordOffset+1, true);
-//        else
-//            pair[1] = dictionary.getPostingPtr(blockIndex, wordOffset+1, false);
+
         return pair;
     }
 
@@ -481,29 +470,27 @@ public class IndexReader
      */
      public Enumeration<Integer> getReviewsWithToken(String token)
      {
+         // TODO: edge case of last word. reading extra 0's in "readInvertedIndex" resulting in wrong answer (a few 1's at the end)
          int[] postingListPtrs = getPostingListPtr(token);
-         if (postingListPtrs == null)
+         if (postingListPtrs != null)
          {
-             return Collections.emptyEnumeration();
-         }
-         else
-         {
-             //TODO: read from invertedIndex and create enumeration for output
              try
              {
                  if (postingListPtrs[1] == POINTER_TO_AFTER_DICT)
                  {
                      // token is the last word in the dictionary so we need don't have pointer to next word's
                      // posting list to use as border for reading
-                     postingListPtrs[1] = -111;// TODO: do we have a way to know where the end of the file is? of other solution for this case
+                     postingListPtrs[1] = (int)invertedIndexFile.length()*8;
                  }
+                 System.out.println("read from " + postingListPtrs[0] + " until " + postingListPtrs[1]);
                  String binaryResult = readInvertedIndex(postingListPtrs[0], postingListPtrs[1]);
                  ArrayList<Integer> tokenReviews = Utils.decodeDelta(binaryResult);
+                 //TODO: turn 146,1,1,1,3,1 into 146,1,147,1,150,1
                  return Collections.enumeration(tokenReviews);
              }
              catch (IOException e) { e.printStackTrace(); }
-             return Collections.emptyEnumeration();
          }
+         return Collections.emptyEnumeration();
      }
 
      /**

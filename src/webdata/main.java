@@ -9,11 +9,10 @@ public class main {
 
     public static void main(String[] args) throws IOException {
         SlowIndexWriter sw = new SlowIndexWriter();
-        sw.slowWrite("C:\\Users\\USER\\IdeaProjects\\webdata_project\\src\\webdata\\2.txt", "C:\\Users\\USER\\Desktop\\webdata_index");
+        sw.slowWrite("C:\\Users\\USER\\IdeaProjects\\webdata_project\\src\\webdata\\1000.txt", "C:\\Users\\USER\\Desktop\\webdata_index");
         IndexReader ir = new IndexReader("C:\\Users\\USER\\Desktop\\webdata_index");
-//        System.out.println(ir.getReviewsWithToken("balconyyyyy"));
-        Enumeration<Integer> res = ir.getReviewsWithToken("a");
-        System.out.println(res.hasMoreElements());
+        Enumeration<Integer> res = ir.getReviewsWithToken("");
+        System.out.println("enumeration is empty: " + !res.hasMoreElements());
         while (res.hasMoreElements())
         {
             System.out.println(res.nextElement());
