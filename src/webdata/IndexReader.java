@@ -15,9 +15,28 @@ public class IndexReader
     private Dictionary dictionary;
     private static final int METADATA_ENTRY_SIZE = 30; // size of metadata entry in bytes TODO: update according to actual size
 
-    private final String invertedIndexFileName = "inverted_index";
+//    private final String invertedIndexFileName = "inverted_index";
     private RandomAccessFile invertedIndexFile = null;
+    private RandomAccessFile reviewDataFile = null;
+    private static final int reviewSize = 15;
+    private static final int productIdLength = 10; // the length of all product id's
     private int numPaddedZeroes;
+
+    /**
+     * indexes for the fields of review meta-data
+     */
+    private static final int productIdIndex = 0, numeratorIndex = 1, denominatorIndex = 2,
+            scoreIndex = 3, lengthIndex = 4;
+
+    /**
+     * Name of the inverted index output file
+     */
+    private static final String invertedIndexFileName = "inverted_index";
+
+    /**
+     * Name of the review meta-data output file
+     */
+    private static final String reviewDataFileName = "reviews meta data";
 
     /**
      * reads an array of ints that was previously saved to disk. how much to read is stored before the data itself.
@@ -127,9 +146,11 @@ public class IndexReader
         loadDictionary(dir);
         numPaddedZeroes = dictionary.numPaddedZeroes;
         Path pathToInvertedIndex = Paths.get(dir).resolve(invertedIndexFileName);
+        //TODO path for review data file
         try
         {
             invertedIndexFile = new RandomAccessFile(String.valueOf(pathToInvertedIndex), "r");
+            reviewDataFile = new RandomAccessFile(dir+"\\"+reviewDataFileName, "r");
         }
         catch (IOException e) { e.printStackTrace(); }
     }
@@ -145,6 +166,14 @@ public class IndexReader
         int blockPtr = dictionary.blockArray[blockIndex];
         int wordLength = dictionary.getWordLen(blockIndex, 0);
         return dictionary.concatStr.substring(blockPtr, blockPtr + wordLength);
+    }
+
+    ArrayList<String> getReviewMetaData(int reviewId) throws IOException
+    {
+        reviewDataFile.seek(reviewSize*(reviewId-1));
+        byte[] meta = new byte[reviewSize];
+        reviewDataFile.read(meta);
+        return Utils.parseReviewMetaData(meta, productIdLength);
     }
 
     /**
@@ -297,15 +326,15 @@ public class IndexReader
      */
     public String getProductId(int reviewId)
     {
-        int metaPtr = getMetaPtr(reviewId);
-        if (metaPtr == -1) // no review with given identifier
-        {
-            return null;
+        String retVal = null; // return value in case of invalid reviewId
+        if (reviewId <= dictionary.amountOfReviews){
+            try
+            {
+                retVal = getReviewMetaData(reviewId).get(productIdIndex);
+            }
+            catch (IOException e) { e.printStackTrace(); }
         }
-        else
-        {
-            return null; // TODO: read from metadata file the productId and return it
-        }
+        return retVal;
     }
 
     /**
@@ -314,15 +343,15 @@ public class IndexReader
      */
     public int getReviewScore(int reviewId)
     {
-        int metaPtr = getMetaPtr(reviewId);
-        if (metaPtr == -1) // no review with given identifier
-        {
-            return -1;
+        int retVal = -1; // return value in case of invalid reviewId
+        if (reviewId <= dictionary.amountOfReviews){
+            try
+            {
+                retVal = Integer.parseInt(getReviewMetaData(reviewId).get(scoreIndex));
+            }
+            catch (IOException e) { e.printStackTrace(); }
         }
-        else
-        {
-            return -1; // TODO: read from metadata file the score and return it
-        }
+        return retVal;
     }
 
     /**
@@ -331,15 +360,15 @@ public class IndexReader
      */
     public int getReviewHelpfulnessNumerator(int reviewId)
     {
-        int metaPtr = getMetaPtr(reviewId);
-        if (metaPtr == -1) // no review with given identifier
-        {
-            return -1;
+        int retVal = -1; // return value in case of invalid reviewId
+        if (reviewId <= dictionary.amountOfReviews){
+            try
+            {
+                retVal = Integer.parseInt(getReviewMetaData(reviewId).get(numeratorIndex));
+            }
+            catch (IOException e) { e.printStackTrace(); }
         }
-        else
-        {
-            return -1; // TODO: read from metadata file the HelpfulnessNumerator and return it
-        }
+        return retVal;
     }
 
     /**
@@ -348,15 +377,15 @@ public class IndexReader
      */
     public int getReviewHelpfulnessDenominator(int reviewId)
     {
-        int metaPtr = getMetaPtr(reviewId);
-        if (metaPtr == -1) // no review with given identifier
-        {
-            return -1;
+        int retVal = -1; // return value in case of invalid reviewId
+        if (reviewId <= dictionary.amountOfReviews){
+            try
+            {
+                retVal = Integer.parseInt(getReviewMetaData(reviewId).get(denominatorIndex));
+            }
+            catch (IOException e) { e.printStackTrace(); }
         }
-        else
-        {
-            return -1; // TODO: read from metadata file the HelpfulnessDenominator and return it
-        }
+        return retVal;
     }
 
     /**
@@ -365,15 +394,15 @@ public class IndexReader
      */
     public int getReviewLength(int reviewId)
     {
-        int metaPtr = getMetaPtr(reviewId);
-        if (metaPtr == -1) // no review with given identifier
-        {
-            return -1;
+        int retVal = -1; // return value in case of invalid reviewId
+        if (reviewId <= dictionary.amountOfReviews){
+            try
+            {
+                retVal = Integer.parseInt(getReviewMetaData(reviewId).get(lengthIndex));
+            }
+            catch (IOException e) { e.printStackTrace(); }
         }
-        else
-        {
-            return -1; // TODO: read from metadata file the length and return it
-        }
+        return retVal;
     }
 
     /**
@@ -439,7 +468,12 @@ public class IndexReader
         }
         else
         {
-            // TODO: read from invertedIndex and compute length of posting list
+            try
+            {
+                String binaryResult = readInvertedIndex(postingPtr[0], postingPtr[1]);
+                return Utils.decodeDelta(binaryResult).size() / 2;
+            }
+            catch (IOException e) { e.printStackTrace(); }
             return 0;
         }
     }
@@ -485,7 +519,7 @@ public class IndexReader
                  System.out.println("read from " + postingListPtrs[0] + " until " + postingListPtrs[1]);
                  String binaryResult = readInvertedIndex(postingListPtrs[0], postingListPtrs[1]);
                  ArrayList<Integer> tokenReviews = Utils.decodeDelta(binaryResult);
-                 //TODO: turn 146,1,1,1,3,1 into 146,1,147,1,150,1
+                 Utils.decompressPostingList(tokenReviews);
                  return Collections.enumeration(tokenReviews);
              }
              catch (IOException e) { e.printStackTrace(); }
@@ -518,15 +552,31 @@ public class IndexReader
      */
     public Enumeration<Integer> getProductReviews(String productId)
     {
-        int[] postingPtr = getPostingListPtr(productId);
-        if (postingPtr == null)
+        //TODO: returning extra values. bug with last productID
+        int[] postingListPtrs = getPostingListPtr(productId);
+        if (postingListPtrs != null)
         {
-            return Collections.emptyEnumeration();
+            try
+            {
+                if (postingListPtrs[1] == POINTER_TO_AFTER_DICT)
+                {
+                    // token is the last word in the dictionary so we need don't have pointer to next word's
+                    // posting list to use as border for reading
+                    postingListPtrs[1] = (int)invertedIndexFile.length()*8;
+                }
+                System.out.println("read from " + postingListPtrs[0] + " until " + postingListPtrs[1]);
+                String binaryResult = readInvertedIndex(postingListPtrs[0], postingListPtrs[1]);
+                ArrayList<Integer> tokenReviews = Utils.decodeDelta(binaryResult);
+                System.out.println(tokenReviews);
+                Utils.decompressPostingList(tokenReviews);
+                System.out.println(tokenReviews);
+                ArrayList<Integer> onlyReviewIds = Utils.getOnlyReviewIds(tokenReviews);
+                System.out.println(onlyReviewIds);
+                return Collections.enumeration(onlyReviewIds);
+            }
+            catch (IOException e) { e.printStackTrace(); }
         }
-        else
-        {
-            //TODO: read from invertedIndex and create enumeration for output
-            return null;
-        }
+        return Collections.emptyEnumeration();
+
     }
 }

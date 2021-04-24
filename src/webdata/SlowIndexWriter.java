@@ -6,6 +6,7 @@ import java.util.*;
 public class SlowIndexWriter
 {
     private RandomAccessFile invertedIndexFile = null;
+    private RandomAccessFile reviewDataFile = null;
     private StringBuilder accumulatedString = new StringBuilder();
     private int pos = 0;
 
@@ -13,6 +14,11 @@ public class SlowIndexWriter
      * Name of the inverted index output file
      */
     private static String invertedIndexFileName = "inverted_index";
+
+    /**
+     * Name of the review meta-data output file
+     */
+    private static String reviewDataFileName = "reviews meta data";
 
     /**
      * represents the amount of extra zeroes on the left portion of the invertedIndex-file.
@@ -109,10 +115,11 @@ public class SlowIndexWriter
             HashMap<String, Integer> wordCountInThisReview = new HashMap<>();   // for counting how many time each word appeared in the text
             // iterate over text. count amount of tokens (with repetitions)
             // and count amount of times word appeared in text
+            Integer prevVal;
             for (String word : text)
             {
                 numOfTotalTokens[0]++;
-                Integer prevVal = wordCountInThisReview.putIfAbsent(word, 1);
+                prevVal = wordCountInThisReview.putIfAbsent(word, 1);
                 if (prevVal != null)
                 {
                     wordCountInThisReview.put(word, ++prevVal);
@@ -124,12 +131,21 @@ public class SlowIndexWriter
             updateArrayList(productId, reviewsWordIsIn, reviewId[0]);
 
             updateArrayList(productId, countOfWordInReview, 1);
+            // TODO: do we want productId as part of vocabulary?
+            //----------- added 24.4-------------
+            numOfTotalTokens[0]++;
+            prevVal = wordCountInThisReview.putIfAbsent(productId, 1);
+            if (prevVal != null)
+            {
+                wordCountInThisReview.put(productId, ++prevVal);
+            }
+            //----------- /added 24.4-------------
 
             // enter/update each significant word into data structures
             for (String word : wordCountInThisReview.keySet())
             {
                 // update total count of this word
-                Integer prevVal = wordCountTotal.putIfAbsent(word, wordCountInThisReview.get(word));
+                prevVal = wordCountTotal.putIfAbsent(word, wordCountInThisReview.get(word));
                 if (prevVal != null)
                 {
                     wordCountTotal.put(word, prevVal + wordCountInThisReview.get(word));
@@ -209,7 +225,8 @@ public class SlowIndexWriter
         processReviews(wordCountTotal, wordInReviewsCount, reviewsWordIsIn, countOfWordInReview, reviewsMetaData,
                 numOfTotalTokens, reviewId, inputFile);
 
-        ArrayList<String> sortedVocabulary = new ArrayList<>(wordCountTotal.keySet());
+//        ArrayList<String> sortedVocabulary = new ArrayList<>(wordCountTotal.keySet());
+        ArrayList<String> sortedVocabulary = new ArrayList<>(reviewsWordIsIn.keySet());
         Collections.sort(sortedVocabulary); // sort vocabulary to insert into dictionary and index
         /*---------------------- </preprocess input> ----------------------*/
 
@@ -293,12 +310,31 @@ public class SlowIndexWriter
         /*------- </dictionary and inverted index> -------*/
 
         /*------------------ <metadata> ------------------*/
-        // save metadata of reviews
+        // write review meta data fields to the review data file
         ArrayList<String> meta;
+        path = String.format("%s\\%s", dir, reviewDataFileName);
+        try {
+            reviewDataFile = new RandomAccessFile(path, "rw");
+            reviewDataFile.seek(0);
+        }
+        catch (IOException e) { e.printStackTrace(); }
         for (int i = 0; i < reviewId[0]-1; i++) //TODO: check boundary - maybe reviewId[0] and not -1
         {
             meta = reviewsMetaData.get(i);
-            // TODO: write meta to file:
+            try {
+                reviewDataFile.write(Utils.productIDToByteArray(meta.get(0))); // product id
+                reviewDataFile.write((byte)Integer.parseInt(meta.get(1))); // numerator
+                reviewDataFile.write((byte)Integer.parseInt(meta.get(2))); // denominator
+                reviewDataFile.write((byte)(int)Double.parseDouble(meta.get(3))); // score
+                int length = Integer.parseInt(meta.get(4));
+                reviewDataFile.write(length & 0xff); // length- first byte
+                reviewDataFile.write((length >> 8) & 0xff); // length- second byte
+            } catch (IOException e) { e.printStackTrace(); }
+        }
+        try {
+            reviewDataFile.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
         /*------------------ </metadata> ------------------*/
         /*----------------- </insert data into dictionary, inverted index and metadata file> -----------------*/
@@ -312,10 +348,12 @@ public class SlowIndexWriter
 //        System.out.println(reviewId[0] - 1);
 //        System.out.println(wordCountTotal);
 //        System.out.println(wordInReviewsCount);
-//        System.out.println(reviewsWordIsIn);
-//        System.out.println(countOfWordInReview);
-//        System.out.println(reviewsMetaData);
-//        System.out.println(sortedVocabulary);
+        System.out.println(reviewsWordIsIn);
+        System.out.println(countOfWordInReview);
+        System.out.println(reviewsMetaData);
+        System.out.println(numOfTotalTokens[0]);
+        System.out.println(sortedVocabulary);
+        System.out.println();
         /*----------------- <write dictionary and inverted index to disk> -----------------*/
         writeInvertedIndex();
         dict.writeDictToDisk(dir);
@@ -327,6 +365,7 @@ public class SlowIndexWriter
      */
     public void removeIndex(String dir)
     {
+        //TODO check and test
         File directory = new File(dir);
         File[] entries = directory.listFiles();
         if (entries != null)

@@ -1,5 +1,6 @@
 package webdata;
 
+import java.awt.image.AreaAveragingScaleFilter;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -104,5 +105,53 @@ public class Utils
             i += length-1;
         }
         return decodedVals;
+    }
+
+    static byte[] productIDToByteArray(String id){
+        byte[] idAsBytes = new byte[id.length()];
+        for(int i = 0; i < id.length(); i++){
+            idAsBytes[i] = (byte)((int)id.charAt(i));
+        }
+        return idAsBytes;
+    }
+
+    /**
+     * this function receives the meta data of a review in the form of a byte array
+     * and returns an ArrayList which contains the parsed fields of data. (The fields
+     * are: Product ID, Numerator, Denominator, Helpfulness, length)
+     */
+    static ArrayList<String> parseReviewMetaData(byte[] meta, int productIdLength){
+        ArrayList<String> parsedMetaData = new ArrayList<>();
+        StringBuilder productID = new StringBuilder();
+        for(int i = 0; i < productIdLength; i++) productID.append((char) meta[i]);
+        parsedMetaData.add(productID.toString()); // product id
+        parsedMetaData.add(String.valueOf(meta[productIdLength])); // numerator
+        parsedMetaData.add(String.valueOf(meta[productIdLength+1])); // denominator
+        parsedMetaData.add(String.valueOf(meta[productIdLength+2])); // score
+        parsedMetaData.add(String.valueOf((meta[productIdLength+4]<<8)+
+                meta[productIdLength+3])); // length
+        return parsedMetaData;
+    }
+
+    static void decompressPostingList(ArrayList<Integer> list)
+    {
+        int prev = 0;
+        int temp;
+        for (int i = 0; i < list.size(); i+=2)
+        {
+            temp = list.get(i) + prev;
+            list.set(i, temp);
+            prev = temp;
+        }
+    }
+
+    static ArrayList<Integer> getOnlyReviewIds(ArrayList<Integer> list)
+    {
+        ArrayList<Integer> onlyReviewIds = new ArrayList<>();
+        for (int i = 0; i < list.size(); i+=2)
+        {
+            onlyReviewIds.add(list.get(i));
+        }
+        return onlyReviewIds;
     }
 }
