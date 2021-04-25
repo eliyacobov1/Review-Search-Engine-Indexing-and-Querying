@@ -13,6 +13,7 @@ public class Dictionary implements Serializable
     public int tokenSizeOfReviews;
     public int amountOfReviews;
     public int numPaddedZeroes;
+    public int lastWordEnding;
 
     int blockIndex = 0;     // for keeping track in block array
     int dictIndex = 0;      // for keeping track in dictionary array
@@ -73,7 +74,7 @@ public class Dictionary implements Serializable
         tokenSizeOfReviews = amountOfTokens;
     }
 
-    public Dictionary(int amountOfTokens, String concatStr, int[] blockArray, int[] dictionary, int amountOfReviews, int numPaddedZeroes)
+    public Dictionary(int amountOfTokens, String concatStr, int[] blockArray, int[] dictionary, int amountOfReviews, int numPaddedZeroes, int lastWordEnding)
     {
         this.tokenSizeOfReviews = amountOfTokens;
         this.concatStr = concatStr;
@@ -81,6 +82,7 @@ public class Dictionary implements Serializable
         this.dictionary = dictionary;
         this.amountOfReviews = amountOfReviews;
         this.numPaddedZeroes = numPaddedZeroes;
+        this.lastWordEnding = lastWordEnding;
     }
 
     /**
@@ -98,14 +100,15 @@ public class Dictionary implements Serializable
             4.1) write length of array to disk (???) maybe just write the needed values
             4.2) write each int to file
          */
-        Path pathToDictionary = Paths.get(dir).resolve(Utils.DICTIONARY_NAME);
+//        Path pathToDictionary = Paths.get(dir).resolve(Utils.DICTIONARY_NAME);
+
         /*-------------------- writing ints and string --------------------*/
         DataOutputStream dos = null;
         FileOutputStream fos = null;
 
         try
         {
-            fos = new FileOutputStream(String.valueOf(pathToDictionary));
+            fos = new FileOutputStream(Utils.getPath(dir, Utils.DICTIONARY_NAME));
             dos  = new DataOutputStream(fos);
 
             dos.writeInt(concatStr.length());
@@ -128,6 +131,7 @@ public class Dictionary implements Serializable
             }
 
             dos.writeInt(numPaddedZeroes);
+            dos.writeInt(lastWordEnding);
             dos.flush();
         }
         catch (IOException e) { e.printStackTrace(); }

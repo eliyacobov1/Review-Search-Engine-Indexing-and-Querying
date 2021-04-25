@@ -1,6 +1,9 @@
 package webdata;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class SlowIndexWriter
@@ -128,10 +131,10 @@ public class SlowIndexWriter
 
             // enter/update "productId" into data structures
             String productId = reviewData.get(0);
-            updateArrayList(productId, reviewsWordIsIn, reviewId[0]);
+//            updateArrayList(productId, reviewsWordIsIn, reviewId[0]);
 
-            updateArrayList(productId, countOfWordInReview, 1);
-            // TODO: do we want productId as part of vocabulary?
+//            updateArrayList(productId, countOfWordInReview, 1);
+            // TODO: do we want productId as part of vocabulary? if not - uncomment 2 lines above
             //----------- added 24.4-------------
             numOfTotalTokens[0]++;
             prevVal = wordCountInThisReview.putIfAbsent(productId, 1);
@@ -230,10 +233,18 @@ public class SlowIndexWriter
         Collections.sort(sortedVocabulary); // sort vocabulary to insert into dictionary and index
         /*---------------------- </preprocess input> ----------------------*/
 
+        Path dirPath = Paths.get(dir);
+        if (!Files.exists(dirPath))
+        {
+            try {dirPath = Files.createDirectory(Paths.get(dir));}
+            catch (IOException e) { e.printStackTrace(); }
+        }
+
         /*-----------------  insert data into dictionary, inverted index and metadata file -----------------*/
         /*------- <dictionary and inverted index> -------*/
-        String path = String.format("%s\\%s", dir, invertedIndexFileName);
-        try { invertedIndexFile = new RandomAccessFile(path, "rw"); }
+//        Path path = Paths.get(dir).resolve(invertedIndexFileName);
+//        String path = String.format("%s\\%s", dir, invertedIndexFileName);
+        try { invertedIndexFile = new RandomAccessFile(Utils.getPath(dir, invertedIndexFileName), "rw"); }
         catch (IOException e) { e.printStackTrace(); }
 
 //        System.out.println(sortedVocabulary);
@@ -271,6 +282,7 @@ public class SlowIndexWriter
         ListIterator<String> vocabIter = sortedVocabulary.listIterator();
         String prevWord = "";
 
+        int postingPrt = pos;
         while (vocabIter.hasNext())
         {
             int index = vocabIter.nextIndex();
@@ -279,7 +291,6 @@ public class SlowIndexWriter
             ArrayList<Integer> invertedIndex = reviewsWordIsIn.get(word);
             ArrayList<Integer> wordCount = countOfWordInReview.get(word);
             // write to index and save pointer
-            int postingPrt = pos;
             for(int i = 0; i < invertedIndex.size(); i++){
                 int diff = invertedIndex.get(i)- (i > 0 ? invertedIndex.get(i-1) : 0);
                 String encodedIndex = Utils.gammaRepr(diff, true);
@@ -305,6 +316,7 @@ public class SlowIndexWriter
             }
             prevWord = word;
         }
+        dict.lastWordEnding = pos;
         dict.amountOfReviews = reviewId[0] - 1;
         dict.numPaddedZeroes = 8 - accumulatedString.length() % 8;
         /*------- </dictionary and inverted index> -------*/
@@ -312,9 +324,10 @@ public class SlowIndexWriter
         /*------------------ <metadata> ------------------*/
         // write review meta data fields to the review data file
         ArrayList<String> meta;
-        path = String.format("%s\\%s", dir, reviewDataFileName);
+//        path = Paths.get(dir).resolve(reviewDataFileName);
+//        path = String.format("%s\\%s", dir, reviewDataFileName);
         try {
-            reviewDataFile = new RandomAccessFile(path, "rw");
+            reviewDataFile = new RandomAccessFile(Utils.getPath(dir, reviewDataFileName), "rw");
             reviewDataFile.seek(0);
         }
         catch (IOException e) { e.printStackTrace(); }

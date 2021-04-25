@@ -3,6 +3,8 @@ package webdata;
 import java.awt.image.AreaAveragingScaleFilter;
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 
 public class Utils
@@ -153,5 +155,11 @@ public class Utils
             onlyReviewIds.add(list.get(i));
         }
         return onlyReviewIds;
+    }
+
+    static String getPath(String dir, String fileName)
+    {
+        Path path = Paths.get(dir).resolve(fileName);
+        return path.toString();
     }
 }

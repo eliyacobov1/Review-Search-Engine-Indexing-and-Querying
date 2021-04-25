@@ -81,14 +81,14 @@ public class IndexReader
     private void loadDictionary(String dir)
     {
 
-        Path pathToDictionary = Paths.get(dir).resolve(Utils.DICTIONARY_NAME);
+//        Path pathToDictionary = Paths.get(dir).resolve(Utils.DICTIONARY_NAME);
         /*-------------------- reading ints and string --------------------*/
         DataInputStream dis = null;
         FileInputStream fis = null;
 
         try
         {
-            fis = new FileInputStream(String.valueOf(pathToDictionary));
+            fis = new FileInputStream(Utils.getPath(dir, Utils.DICTIONARY_NAME));
             dis = new DataInputStream(fis);
             int concatStrLen = dis.readInt();
             StringBuilder sb = new StringBuilder();
@@ -105,7 +105,8 @@ public class IndexReader
             int[] blockArray = readIntArray(dis);
             int[] dict = readIntArray(dis);
             int amountOfPaddedZeros = dis.readInt();
-            dictionary = new Dictionary(tokenSizeOfReviews, concatStr, blockArray, dict, amountOfReviews, amountOfPaddedZeros);
+            int lastWordEnding = dis.readInt();
+            dictionary = new Dictionary(tokenSizeOfReviews, concatStr, blockArray, dict, amountOfReviews, amountOfPaddedZeros, lastWordEnding);
         }
         catch (IOException e)
         {
@@ -145,12 +146,12 @@ public class IndexReader
     {
         loadDictionary(dir);
         numPaddedZeroes = dictionary.numPaddedZeroes;
-        Path pathToInvertedIndex = Paths.get(dir).resolve(invertedIndexFileName);
+//        Path pathToInvertedIndex = Paths.get(dir).resolve(invertedIndexFileName);
         //TODO path for review data file
         try
         {
-            invertedIndexFile = new RandomAccessFile(String.valueOf(pathToInvertedIndex), "r");
-            reviewDataFile = new RandomAccessFile(dir+"\\"+reviewDataFileName, "r");
+            invertedIndexFile = new RandomAccessFile(Utils.getPath(dir, invertedIndexFileName), "r");
+            reviewDataFile = new RandomAccessFile(Utils.getPath(dir, reviewDataFileName), "r");
         }
         catch (IOException e) { e.printStackTrace(); }
     }
@@ -426,7 +427,7 @@ public class IndexReader
                 pair[0] = dictionary.getPostingPtr(blockIndex, wordOffset, true);
             else
                 pair[0] = dictionary.getPostingPtr(blockIndex, wordOffset, false);
-            pair[1] = POINTER_TO_AFTER_DICT;
+            pair[1] = dictionary.lastWordEnding;
             System.out.println(Arrays.toString(pair));
             return pair;
         }
@@ -516,7 +517,7 @@ public class IndexReader
                      // posting list to use as border for reading
                      postingListPtrs[1] = (int)invertedIndexFile.length()*8;
                  }
-                 System.out.println("read from " + postingListPtrs[0] + " until " + postingListPtrs[1]);
+//                 System.out.println("read from " + postingListPtrs[0] + " until " + postingListPtrs[1]);
                  String binaryResult = readInvertedIndex(postingListPtrs[0], postingListPtrs[1]);
                  ArrayList<Integer> tokenReviews = Utils.decodeDelta(binaryResult);
                  Utils.decompressPostingList(tokenReviews);
@@ -564,7 +565,7 @@ public class IndexReader
                     // posting list to use as border for reading
                     postingListPtrs[1] = (int)invertedIndexFile.length()*8;
                 }
-                System.out.println("read from " + postingListPtrs[0] + " until " + postingListPtrs[1]);
+//                System.out.println("read from " + postingListPtrs[0] + " until " + postingListPtrs[1]);
                 String binaryResult = readInvertedIndex(postingListPtrs[0], postingListPtrs[1]);
                 ArrayList<Integer> tokenReviews = Utils.decodeDelta(binaryResult);
                 System.out.println(tokenReviews);

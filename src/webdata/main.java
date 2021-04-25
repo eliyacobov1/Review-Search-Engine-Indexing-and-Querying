@@ -9,14 +9,16 @@ public class main {
 
     public static void main(String[] args) throws IOException {
         SlowIndexWriter sw = new SlowIndexWriter();
-        sw.slowWrite("C:\\Users\\USER\\IdeaProjects\\webdata_project\\src\\webdata\\1000.txt", "C:\\Users\\USER\\Desktop\\webdata_index");
-        IndexReader ir = new IndexReader("C:\\Users\\USER\\Desktop\\webdata_index");
+        sw.slowWrite("C:\\Users\\USER\\IdeaProjects\\webdata_project\\src\\webdata\\100.txt", "C:\\Users\\USER\\Desktop\\webdata_index");
+//        sw.removeIndex("C:\\Users\\USER\\Desktop\\webdata_index_2");
+                IndexReader ir = new IndexReader("C:\\Users\\USER\\Desktop\\webdata_index");
 
-        Enumeration<Integer> res = ir.getReviewsWithToken("rides");
+        Enumeration<Integer> res = ir.getReviewsWithToken("prepare");
 //        Enumeration<Integer> res = ir.getProductReviews("B006K2ZZ7K");// should be 5,6,7,8
 //        Enumeration<Integer> res = ir.getProductReviews("B000LQOCH0");// should be 3
 //        Enumeration<Integer> res = ir.getProductReviews("B0009XLVG0"); // should be 12,13
-        System.out.println("enumeration is empty: " + !res.hasMoreElements());
+//        Enumeration<Integer> res = ir.getProductReviews("B0019CW0HE"); // should be 84,100
+//        System.out.println("enumeration is empty: " + !res.hasMoreElements());
         while (res.hasMoreElements())
         {
             System.out.println(res.nextElement());

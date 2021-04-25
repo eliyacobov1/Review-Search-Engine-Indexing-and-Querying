@@ -110,7 +110,8 @@ public class ReviewPreprocessor
             currLine = reader.nextLine();
 
         currLine = getInfo(currLine);
-        reviewText = currLine.split("\\W+"); // take only alpha-numeric characters
+//        reviewText = currLine.split("\\W+"); // take only alpha-numeric characters
+        reviewText = currLine.split("[^A-Za-z0-9]++"); // take only alpha-numeric characters
         for (int i = 0; i < reviewText.length; i++)
         {
             reviewText[i] = reviewText[i].toLowerCase();
