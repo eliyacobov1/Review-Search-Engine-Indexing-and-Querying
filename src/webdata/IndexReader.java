@@ -13,7 +13,7 @@ public class IndexReader
 {
     private static final int POINTER_TO_AFTER_DICT = -1;
     private Dictionary dictionary;
-    private static final int METADATA_ENTRY_SIZE = 30; // size of metadata entry in bytes TODO: update according to actual size
+//    private static final int METADATA_ENTRY_SIZE = 30; // size of metadata entry in bytes TODO: update according to actual size
 
 //    private final String invertedIndexFileName = "inverted_index";
     private RandomAccessFile invertedIndexFile = null;
@@ -146,8 +146,6 @@ public class IndexReader
     {
         loadDictionary(dir);
         numPaddedZeroes = dictionary.numPaddedZeroes;
-//        Path pathToInvertedIndex = Paths.get(dir).resolve(invertedIndexFileName);
-        //TODO path for review data file
         try
         {
             invertedIndexFile = new RandomAccessFile(Utils.getPath(dir, invertedIndexFileName), "r");
@@ -282,8 +280,6 @@ public class IndexReader
                 }
             }
 
-            prefixLen = dictionary.getWordPrefix(blockIndex, wordOfBlock, true);
-            prefix = word.substring(0, prefixLen);
 
             if (blockIndex < dictionary.blockArray.length - 1)  // not last block - use beginning of next block as indicator of end of suffix
             {
@@ -292,8 +288,14 @@ public class IndexReader
             }
             else    // last block - use length of concatStr as indicator of end of suffix
             {
+                if (wordOfBlock < Dictionary.K)
+                {
+                    return -1;
+                }
                 suffix = dictionary.concatStr.substring(inBlockPtr + prevSuffixLen, dictionary.concatStr.length());
             }
+            prefixLen = dictionary.getWordPrefix(blockIndex, wordOfBlock, true);
+            prefix = word.substring(0, prefixLen);
             word = prefix.concat(suffix);
             if (token.equals(word))
             {
@@ -303,20 +305,20 @@ public class IndexReader
         return -1;
     }
 
-    /**
-     * returns the pointer to the relevant location in metadata file.
-     * returns -1 if there is no review with the given identifier
-     * @param reviewId identifier of the wanted review
-     * @return pointer to the relevant location in metadata file. -1 if there is no review with the given identifier
-     */
-    private int getMetaPtr(int reviewId)
-    {
-        if (reviewId > dictionary.amountOfReviews)
-        {
-            return -1;
-        }
-        return METADATA_ENTRY_SIZE * reviewId;
-    }
+//    /**
+//     * returns the pointer to the relevant location in metadata file.
+//     * returns -1 if there is no review with the given identifier
+//     * @param reviewId identifier of the wanted review
+//     * @return pointer to the relevant location in metadata file. -1 if there is no review with the given identifier
+//     */
+//    private int getMetaPtr(int reviewId)
+//    {
+//        if (reviewId > dictionary.amountOfReviews)
+//        {
+//            return -1;
+//        }
+//        return METADATA_ENTRY_SIZE * reviewId;
+//    }
 
 
     // ---------------------------------- User API ----------------------------------
@@ -428,7 +430,6 @@ public class IndexReader
             else
                 pair[0] = dictionary.getPostingPtr(blockIndex, wordOffset, false);
             pair[1] = dictionary.lastWordEnding;
-            System.out.println(Arrays.toString(pair));
             return pair;
         }
 
@@ -463,11 +464,7 @@ public class IndexReader
     public int getTokenFrequency(String token)
     {
         int[] postingPtr = getPostingListPtr(token);
-        if (postingPtr == null)
-        {
-            return 0;
-        }
-        else
+        if (postingPtr != null)
         {
             try
             {
@@ -475,8 +472,8 @@ public class IndexReader
                 return Utils.decodeDelta(binaryResult).size() / 2;
             }
             catch (IOException e) { e.printStackTrace(); }
-            return 0;
         }
+        return 0;
     }
 
     /**
@@ -505,7 +502,6 @@ public class IndexReader
      */
      public Enumeration<Integer> getReviewsWithToken(String token)
      {
-         // TODO: edge case of last word. reading extra 0's in "readInvertedIndex" resulting in wrong answer (a few 1's at the end)
          int[] postingListPtrs = getPostingListPtr(token);
          if (postingListPtrs != null)
          {
@@ -553,26 +549,21 @@ public class IndexReader
      */
     public Enumeration<Integer> getProductReviews(String productId)
     {
-        //TODO: returning extra values. bug with last productID
         int[] postingListPtrs = getPostingListPtr(productId);
         if (postingListPtrs != null)
         {
             try
             {
-                if (postingListPtrs[1] == POINTER_TO_AFTER_DICT)
-                {
-                    // token is the last word in the dictionary so we need don't have pointer to next word's
-                    // posting list to use as border for reading
-                    postingListPtrs[1] = (int)invertedIndexFile.length()*8;
-                }
-//                System.out.println("read from " + postingListPtrs[0] + " until " + postingListPtrs[1]);
+//                if (postingListPtrs[1] == POINTER_TO_AFTER_DICT)
+//                {
+//                    // token is the last word in the dictionary so we need don't have pointer to next word's
+//                    // posting list to use as border for reading
+//                    postingListPtrs[1] = (int)invertedIndexFile.length()*8;
+//                }
                 String binaryResult = readInvertedIndex(postingListPtrs[0], postingListPtrs[1]);
                 ArrayList<Integer> tokenReviews = Utils.decodeDelta(binaryResult);
-                System.out.println(tokenReviews);
                 Utils.decompressPostingList(tokenReviews);
-                System.out.println(tokenReviews);
                 ArrayList<Integer> onlyReviewIds = Utils.getOnlyReviewIds(tokenReviews);
-                System.out.println(onlyReviewIds);
                 return Collections.enumeration(onlyReviewIds);
             }
             catch (IOException e) { e.printStackTrace(); }

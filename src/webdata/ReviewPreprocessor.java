@@ -35,10 +35,21 @@ public class ReviewPreprocessor
         }
     }
 
-    /***
+    /**
+     * returns the string that comes after the first colon
+     * @param text String with colon in it
+     * @return String coming after te colon
+     */
+    private String getText(String text)
+    {
+        String[] strArr = text.split(": ", 2);
+        return strArr[1];
+    }
+
+    /**
      * returns the string that comes after the colon
      * @param line String with colon in it
-     * @return String comming after te colon
+     * @return String coming after te colon
      */
     private String getInfo(String line)
     {
@@ -108,15 +119,12 @@ public class ReviewPreprocessor
 
         while (!currLine.contains("review/text:"))
             currLine = reader.nextLine();
-
-        currLine = getInfo(currLine);
-//        reviewText = currLine.split("\\W+"); // take only alpha-numeric characters
+        currLine = getText(currLine);
         reviewText = currLine.split("[^A-Za-z0-9]++"); // take only alpha-numeric characters
         for (int i = 0; i < reviewText.length; i++)
         {
             reviewText[i] = reviewText[i].toLowerCase();
         }
-
     }
 
     /**
