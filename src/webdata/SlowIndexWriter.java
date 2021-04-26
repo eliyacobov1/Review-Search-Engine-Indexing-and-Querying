@@ -89,6 +89,24 @@ public class SlowIndexWriter
         mapToUpdate.put(word, reviewList);
     }
 
+    private String[] removeEmptyString(String[] text)
+    {
+        String[] temp = new String[text.length];
+        int j = 0;
+        int i;
+        for (i=0; i<text.length; i++)
+        {
+            if (!text[i].equals(""))
+            {
+                temp[j] = text[i];
+                j++;
+            }
+        }
+        String[] res = new String[text.length - (i-j)];
+        System.arraycopy(temp, 0, res, 0, res.length);
+        return res;
+    }
+
     /**
      * Iterates over input reviews given and collects all needed data and updates data structures used for creating
      * dictionary and inverted index
@@ -113,7 +131,7 @@ public class SlowIndexWriter
         {
             ArrayList<String> reviewData = rp.getNextReview();
             String[] text = rp.getReviewText();
-
+            text = removeEmptyString(text);
             reviewsMetaData.add(getMetadata(reviewData.get(0), reviewData.get(1), reviewData.get(2), reviewData.get(3), Integer.toString(text.length)));
 
             HashMap<String, Integer> wordCountInThisReview = new HashMap<>();   // for counting how many time each word appeared in the text
@@ -241,10 +259,10 @@ public class SlowIndexWriter
         int[] reviewId = {1};
         processReviews(wordCountTotal, wordInReviewsCount, reviewsWordIsIn, countOfWordInReview, reviewsMetaData,
                 numOfTotalTokens, reviewId, inputFile);
-        if (wordCountTotal.containsKey(""))
-        {
-            removeEmptyString(wordCountTotal, wordInReviewsCount, reviewsWordIsIn, countOfWordInReview, numOfTotalTokens);
-        }
+//        if (wordCountTotal.containsKey(""))
+//        {
+//            removeEmptyString(wordCountTotal, wordInReviewsCount, reviewsWordIsIn, countOfWordInReview, numOfTotalTokens);
+//        }
 //        ArrayList<String> sortedVocabulary = new ArrayList<>(wordCountTotal.keySet());
         ArrayList<String> sortedVocabulary = new ArrayList<>(reviewsWordIsIn.keySet());
         Collections.sort(sortedVocabulary); // sort vocabulary to insert into dictionary and index

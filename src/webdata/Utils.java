@@ -82,6 +82,10 @@ public class Utils
         return unaryRepr + binaryRepr;
     }
 
+    static String intTo8bitBinaryString(int num){
+        return String.format("%8s", Integer.toBinaryString(num & 0xff)).replace(' ', '0');
+    }
+
     /**
      * This function receives a String of a number in binary base, which represents
      * a certain chain of integers in delta encoding. The function deciphers and
@@ -130,8 +134,11 @@ public class Utils
         parsedMetaData.add(String.valueOf(meta[productIdLength])); // numerator
         parsedMetaData.add(String.valueOf(meta[productIdLength+1])); // denominator
         parsedMetaData.add(String.valueOf(meta[productIdLength+2])); // score
-        parsedMetaData.add(String.valueOf((meta[productIdLength+4]<<8)+
-                meta[productIdLength+3])); // length
+        String reviewLength = String.valueOf(binaryStringToInt(
+                intTo8bitBinaryString(meta[productIdLength+4]) +
+                        intTo8bitBinaryString(meta[productIdLength+3])
+        ));
+        parsedMetaData.add(reviewLength); // length
         return parsedMetaData;
     }
 
