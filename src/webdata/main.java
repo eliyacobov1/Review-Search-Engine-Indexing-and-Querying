@@ -3,6 +3,7 @@ package webdata;
 
 import java.io.*;
 import java.util.Arrays;
+import java.util.Enumeration;
 
 public class main {
 
@@ -14,16 +15,15 @@ public class main {
 //        sw.removeIndex("C:\\Users\\USER\\Desktop\\webdata_index_2");
         IndexReader ir = new IndexReader("C:\\Users\\USER\\Desktop\\webdata_index");
 
-//        Enumeration<Integer> res = ir.getReviewsWithToken("0");
+        Enumeration<Integer> res = ir.getReviewsWithToken("0");
+//        Enumeration<Integer> res = ir.getReviewsWithToken("a");
 //        Enumeration<Integer> res = ir.getProductReviews("B006K2ZZ7K");
 //        Enumeration<Integer> res = ir.getProductReviews("B000LQOCH0");
-//        Enumeration<Integer> res = ir.getProductReviews("B0009XLVG0");
-//        Enumeration<Integer> res = ir.getProductReviews("B003ZFRKGO");
 //        System.out.println("enumeration is empty: " + !res.hasMoreElements());
-//        while (res.hasMoreElements())
-//        {
-//            System.out.println(res.nextElement());
-//        }
+        while (res.hasMoreElements())
+        {
+            System.out.println(res.nextElement());
+        }
 //        System.out.println(ir.getTokenFrequency("prepare"));
 //        System.out.println(ir.getTokenFrequency("rides"));
 //        System.out.println(ir.getTokenFrequency("ridessss"));
@@ -60,7 +60,7 @@ public class main {
 //        System.out.println(ir.getReviewLength(19));
 //        System.out.println(ir.getReviewLength(3));
 //        System.out.println(ir.getReviewLength(100));
-        System.out.println(ir.getReviewLength(349));
+//        System.out.println(ir.getReviewLength(349));
 
 
     }
