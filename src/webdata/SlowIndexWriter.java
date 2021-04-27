@@ -89,7 +89,7 @@ public class SlowIndexWriter
                                 HashMap<String, ArrayList<Integer>> reviewsWordIsIn,
                                 HashMap<String, ArrayList<Integer>> countOfWordInReview,
                                 ArrayList<ArrayList<String>> reviewsMetaData,
-                                int[] numOfTotalTokens, int[] reviewId, String inputFile) throws IOException
+                                int[] numOfTotalTokens, int[] reviewId, String inputFile)
     {
         ReviewPreprocessor rp = new ReviewPreprocessor(inputFile);
         while (rp.hasMoreReviews()) {
@@ -165,7 +165,7 @@ public class SlowIndexWriter
      * dir is the directory in which all index files will be created
      * if the directory does not exist, it should be created
      */
-    public void slowWrite(String inputFile, String dir) throws IOException {
+    public void slowWrite(String inputFile, String dir) {
         //TODO: if dir doesn't exist create it. open files.
         //TODO: close input file inputFile. check where this should be done.
         /*---------------------- <preprocess input> ----------------------*/

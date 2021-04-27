@@ -91,28 +91,41 @@ class ReviewPreprocessor
      * checks if there are more reviews to process.
      * @return True if there are more reviews to process. otherwise, false
      */
-    boolean hasMoreReviews() throws IOException {
-        reader.mark(1024);
-        String line = reader.readLine();
-        while(line != null){
-            if(line.contains("product")){
-                reader.reset();
-                return true;
+    boolean hasMoreReviews() {
+        try {
+
+            reader.mark(1024);
+            String line = reader.readLine();
+            while(line != null){
+                if(line.contains("product")){
+                    reader.reset();
+                    return true;
+                }
+                else{
+                    line = reader.readLine();
+                }
             }
-            else{
-                line = reader.readLine();
-            }
+            reader.reset();
+            return false;
         }
-        reader.reset();
-        return false;
+        catch (IOException e){
+            e.printStackTrace();
+            return false;
+        }
     }
 
     /**
      * returns array list with the meta data of the last review the was read
      * @return array list of strings with the meta data of the last review the was read
      */
-    ArrayList<String> getNextReview() throws IOException {
-        readNextReview();
+    ArrayList<String> getNextReview(){
+        try {
+            readNextReview();
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
         return currentReviewMetaData;
     }
 
