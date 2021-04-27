@@ -1,5 +1,7 @@
 package webdata;
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class SlowIndexWriter
@@ -183,16 +185,22 @@ public class SlowIndexWriter
         /*-----------------  insert data into dictionary, inverted index and metadata file -----------------*/
         /*------- <dictionary and inverted index> -------*/
 
-        try { invertedIndexFile = new RandomAccessFile(Utils.getPath(dir, invertedIndexFileName), "rw"); }
+        try {
+            if (!Files.exists(Paths.get(dir)))
+            {
+                Files.createDirectory(Paths.get(dir));
+            }
+            invertedIndexFile = new RandomAccessFile(Utils.getPath(dir, invertedIndexFileName), "rw");
+        }
         catch (IOException e) { e.printStackTrace(); }
 
         Dictionary dict = new Dictionary(sortedVocabulary.size(), numOfTotalTokens[0]);
         ListIterator<String> vocabIter = sortedVocabulary.listIterator();
         String prevWord = "";
-
+        int index = 0;
         while (vocabIter.hasNext())
         {
-            int index = vocabIter.nextIndex();
+            index = vocabIter.nextIndex();
             String word = vocabIter.next();
             // write to index and save pointer
             ArrayList<Integer> invertedIndex = reviewsWordIsIn.get(word);
@@ -224,6 +232,7 @@ public class SlowIndexWriter
             }
             prevWord = word;
         }
+        dict.sizeOfLastBlock = ((index) % Dictionary.K) +1;
         dict.lastWordEnding = pos;
         dict.amountOfReviews = reviewId[0] - 1;
         dict.numPaddedZeroes = accumulatedString.length()%8 == 0 ?
@@ -259,6 +268,7 @@ public class SlowIndexWriter
         /*----------------- <write dictionary and inverted index to disk> -----------------*/
         writeInvertedIndex();
         dict.writeDictToDisk(dir);
+        Utils.safelyCloseStreams(invertedIndexFile, reviewDataFile);
     }
 
     /**

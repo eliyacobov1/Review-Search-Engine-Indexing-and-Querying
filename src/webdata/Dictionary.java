@@ -8,6 +8,7 @@ public class Dictionary{
     int tokenSizeOfReviews;
     int amountOfReviews;
     int lastWordEnding;
+    int sizeOfLastBlock;
     private int blockIndex = 0; // for keeping track in block array
     private int dictIndex = 0;  // for keeping track in dictionary array
 
@@ -66,7 +67,7 @@ public class Dictionary{
         tokenSizeOfReviews = amountOfTokens;
     }
 
-    Dictionary(int amountOfTokens, String concatStr, int[] blockArray, int[] dictionary, int amountOfReviews, int numPaddedZeroes, int lastWordEnding)
+    Dictionary(int amountOfTokens, String concatStr, int[] blockArray, int[] dictionary, int amountOfReviews, int numPaddedZeroes, int lastWordEnding, int sizeOfLastBlock)
     {
         this.tokenSizeOfReviews = amountOfTokens;
         this.concatStr = concatStr;
@@ -75,6 +76,7 @@ public class Dictionary{
         this.amountOfReviews = amountOfReviews;
         this.numPaddedZeroes = numPaddedZeroes;
         this.lastWordEnding = lastWordEnding;
+        this.sizeOfLastBlock = sizeOfLastBlock;
     }
 
     /**
@@ -107,6 +109,7 @@ public class Dictionary{
             }
             dos.writeInt(numPaddedZeroes);
             dos.writeInt(lastWordEnding);
+            dos.writeInt(sizeOfLastBlock);
             dos.flush();
         }
         catch (IOException e) { e.printStackTrace(); }

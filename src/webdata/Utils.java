@@ -1,6 +1,7 @@
 package webdata;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -187,5 +188,23 @@ class Utils {
     static String getPath(String dir, String fileName) {
         Path path = Paths.get(dir).resolve(fileName);
         return path.toString();
+    }
+
+    static RandomAccessFile openIndexFile(String fileName, String dir)
+    {
+        try {
+            return new RandomAccessFile(Utils.getPath(dir, fileName), "r");
+        }
+        catch (IOException e) { e.printStackTrace(); }
+        return null;
+    }
+
+    static void safelyCloseFile(Closeable f1)
+    {
+        try
+        {
+            f1.close();
+        }
+        catch (IOException e) { e.printStackTrace();}
     }
 }

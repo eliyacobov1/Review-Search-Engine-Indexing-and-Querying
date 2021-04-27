@@ -14,6 +14,7 @@ public class IndexReader {
     private static final int reviewSize = 15;
     private static final int productIdLength = 10; // the length of all product id's
     private int numPaddedZeroes;
+    private final String dirName;
 
     /**
      * indexes for the fields of review meta-data
@@ -51,6 +52,7 @@ public class IndexReader {
      * stored in the output-file between the given start and end indexes
      */
     private String readInvertedIndex(int startPos, int endPos) throws IOException {
+        invertedIndexFile = Utils.openIndexFile(invertedIndexFileName, dirName);
         startPos += numPaddedZeroes; // shift indexes in order to ignore redundant 0 bits
         endPos += numPaddedZeroes;
         invertedIndexFile.seek(startPos/8);
@@ -62,6 +64,7 @@ public class IndexReader {
         ));
         String res = resBuilder.toString().replace(' ', '0');
         res = res.substring(startPos % 8, (startPos % 8) + endPos-startPos);
+        Utils.safelyCloseFile(invertedIndexFile);
         return res;
     }
 
@@ -95,7 +98,8 @@ public class IndexReader {
             int[] dict = readIntArray(dis);
             int amountOfPaddedZeros = dis.readInt();
             int lastWordEnding = dis.readInt();
-            dictionary = new Dictionary(tokenSizeOfReviews, concatStr, blockArray, dict, amountOfReviews, amountOfPaddedZeros, lastWordEnding);
+            int sizeOfLastBlock = dis.readInt();
+            dictionary = new Dictionary(tokenSizeOfReviews, concatStr, blockArray, dict, amountOfReviews, amountOfPaddedZeros, lastWordEnding, sizeOfLastBlock);
         }
         catch (IOException e) {
             e.printStackTrace();
@@ -112,11 +116,7 @@ public class IndexReader {
     public IndexReader(String dir) {
         loadDictionary(dir);
         numPaddedZeroes = dictionary.numPaddedZeroes;
-        try {
-            invertedIndexFile = new RandomAccessFile(Utils.getPath(dir, invertedIndexFileName), "r");
-            reviewDataFile = new RandomAccessFile(Utils.getPath(dir, reviewDataFileName), "r");
-        }
-        catch (IOException e) { e.printStackTrace(); }
+        dirName = dir;
     }
 
 
@@ -134,9 +134,11 @@ public class IndexReader {
 
     private ArrayList<String> getReviewMetaData(int reviewId) throws IOException
     {
+        reviewDataFile = Utils.openIndexFile(reviewDataFileName, dirName);
         reviewDataFile.seek(reviewSize*(reviewId-1));
         byte[] meta = new byte[reviewSize];
         reviewDataFile.read(meta);
+        Utils.safelyCloseFile(reviewDataFile);
         return Utils.parseReviewMetaData(meta, productIdLength);
     }
 
@@ -199,6 +201,17 @@ public class IndexReader {
         return suffix;
     }
 
+    private int getBlockSize(int blockIndex)
+    {
+        if (blockIndex == dictionary.blockArray.length - 1)
+        {
+            return dictionary.sizeOfLastBlock;
+        }
+        else
+        {
+            return Dictionary.K - 1;
+        }
+    }
     /**
      * returns the offset of the given token in the block it is suspected to be in.
      * if token is not in this block - returns -1
@@ -216,7 +229,8 @@ public class IndexReader {
             String prefix, suffix;
             int prefixLen, wordOfBlock;
             int prevSuffixLen = word.length();
-            for (wordOfBlock = 1; wordOfBlock < Dictionary.K -1 ; ++wordOfBlock) {
+            int blockSize = getBlockSize(blockIndex);
+            for (wordOfBlock = 1; wordOfBlock < blockSize; ++wordOfBlock) {
                 prefixLen = dictionary.getWordPrefix(blockIndex, wordOfBlock);
                 prefix = word.substring(0, prefixLen);
 
