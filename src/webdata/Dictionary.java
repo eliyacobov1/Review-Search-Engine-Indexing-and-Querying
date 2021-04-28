@@ -112,7 +112,7 @@ public class Dictionary{
             dos.writeInt(sizeOfLastBlock);
             dos.flush();
         }
-        catch (IOException e) { e.printStackTrace(); }
+        catch (IOException e) { Utils.handleException(e); }
         finally {
             Utils.safelyCloseStreams(fos, dos);
         }

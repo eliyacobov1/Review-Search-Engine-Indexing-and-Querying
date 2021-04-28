@@ -33,7 +33,7 @@ public class SlowIndexWriter
             invertedIndexFile.write(Utils.binaryStringToByte(accumulatedString.toString()));
         }
         catch (IOException e) {
-            e.printStackTrace();
+            Utils.handleException(e);
         }
     }
 
@@ -192,7 +192,7 @@ public class SlowIndexWriter
             }
             invertedIndexFile = new RandomAccessFile(Utils.getPath(dir, invertedIndexFileName), "rw");
         }
-        catch (IOException e) { e.printStackTrace(); }
+        catch (IOException e) { Utils.handleException(e); }
 
         Dictionary dict = new Dictionary(sortedVocabulary.size(), numOfTotalTokens[0]);
         ListIterator<String> vocabIter = sortedVocabulary.listIterator();
@@ -246,7 +246,7 @@ public class SlowIndexWriter
             reviewDataFile = new RandomAccessFile(Utils.getPath(dir, reviewDataFileName), "rw");
             reviewDataFile.seek(0);
         }
-        catch (IOException e) { e.printStackTrace(); }
+        catch (IOException e) { Utils.handleException(e); }
         for (int i = 0; i < reviewId[0]-1; i++)
         {
             meta = reviewsMetaData.get(i);
@@ -258,12 +258,12 @@ public class SlowIndexWriter
                 int length = Integer.parseInt(meta.get(4));
                 reviewDataFile.write(length & 0xff); // length- first byte
                 reviewDataFile.write((length >> 8) & 0xff); // length- second byte
-            } catch (IOException e) { e.printStackTrace(); }
+            } catch (IOException e) { Utils.handleException(e); }
         }
         try {
             reviewDataFile.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            Utils.handleException(e);
         }
         /*----------------- <write dictionary and inverted index to disk> -----------------*/
         writeInvertedIndex();

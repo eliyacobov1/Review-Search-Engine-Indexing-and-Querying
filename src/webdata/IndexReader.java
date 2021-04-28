@@ -102,7 +102,7 @@ public class IndexReader {
             dictionary = new Dictionary(tokenSizeOfReviews, concatStr, blockArray, dict, amountOfReviews, amountOfPaddedZeros, lastWordEnding, sizeOfLastBlock);
         }
         catch (IOException e) {
-            e.printStackTrace();
+            Utils.handleException(e);
         }
         finally {
             Utils.safelyCloseStreams(fis, dis);
@@ -278,7 +278,7 @@ public class IndexReader {
             try {
                 retVal = getReviewMetaData(reviewId).get(productIdIndex);
             }
-            catch (IOException e) { e.printStackTrace(); }
+            catch (IOException e) { Utils.handleException(e); }
         }
         return retVal;
     }
@@ -293,7 +293,7 @@ public class IndexReader {
             try {
                 retVal = Integer.parseInt(getReviewMetaData(reviewId).get(scoreIndex));
             }
-            catch (IOException e) { e.printStackTrace(); }
+            catch (IOException e) { Utils.handleException(e); }
         }
         return retVal;
     }
@@ -308,7 +308,7 @@ public class IndexReader {
             try {
                 retVal = Integer.parseInt(getReviewMetaData(reviewId).get(numeratorIndex));
             }
-            catch (IOException e) { e.printStackTrace(); }
+            catch (IOException e) { Utils.handleException(e); }
         }
         return retVal;
     }
@@ -323,7 +323,7 @@ public class IndexReader {
             try {
                 retVal = Integer.parseInt(getReviewMetaData(reviewId).get(denominatorIndex));
             }
-            catch (IOException e) { e.printStackTrace(); }
+            catch (IOException e) { Utils.handleException(e); }
         }
         return retVal;
     }
@@ -338,7 +338,7 @@ public class IndexReader {
             try {
                 retVal = Integer.parseInt(getReviewMetaData(reviewId).get(lengthIndex));
             }
-            catch (IOException e) { e.printStackTrace(); }
+            catch (IOException e) { Utils.handleException(e); }
         }
         return retVal;
     }
@@ -400,7 +400,7 @@ public class IndexReader {
                 String binaryResult = readInvertedIndex(postingPtr[0], postingPtr[1]);
                 return Utils.decodeDelta(binaryResult).size() / 2;
             }
-            catch (IOException e) { e.printStackTrace(); }
+            catch (IOException e) { Utils.handleException(e); }
         }
         return 0;
     }
@@ -442,7 +442,7 @@ public class IndexReader {
                 Utils.decompressPostingList(tokenReviews);
                 return Collections.enumeration(tokenReviews);
             }
-            catch (IOException e) { e.printStackTrace(); }
+            catch (IOException e) { Utils.handleException(e); }
         }
         return Collections.emptyEnumeration();
     }
@@ -480,7 +480,7 @@ public class IndexReader {
                 ArrayList<Integer> onlyReviewIds = Utils.getOnlyReviewIds(tokenReviews);
                 return Collections.enumeration(onlyReviewIds);
             }
-            catch (IOException e) { e.printStackTrace(); }
+            catch (IOException e) { Utils.handleException(e); }
         }
         return Collections.emptyEnumeration();
     }

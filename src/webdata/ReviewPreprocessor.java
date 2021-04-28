@@ -27,6 +27,7 @@ class ReviewPreprocessor
         }
         catch (FileNotFoundException e) {
             System.out.println("error opening file");
+            System.exit(-1);
         }
     }
 
@@ -109,7 +110,7 @@ class ReviewPreprocessor
             return false;
         }
         catch (IOException e){
-            e.printStackTrace();
+            Utils.handleException(e);
             return false;
         }
     }
@@ -124,7 +125,7 @@ class ReviewPreprocessor
         }
         catch (IOException e)
         {
-            e.printStackTrace();
+            Utils.handleException(e);
         }
         return currentReviewMetaData;
     }

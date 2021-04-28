@@ -36,11 +36,11 @@ class Utils {
     static void safelyCloseStreams(Closeable f1, Closeable f2) {
         if (f1 != null) {
             try { f1.close(); }
-            catch (IOException e) { e.printStackTrace(); }
+            catch (IOException e) { handleException(e); }
         }
         if (f2 != null) {
             try { f2.close(); }
-            catch (IOException e) { e.printStackTrace(); }
+            catch (IOException e) { handleException(e); }
         }
     }
 
@@ -195,7 +195,7 @@ class Utils {
         try {
             return new RandomAccessFile(Utils.getPath(dir, fileName), "r");
         }
-        catch (IOException e) { e.printStackTrace(); }
+        catch (IOException e) { handleException(e); }
         return null;
     }
 
@@ -205,6 +205,12 @@ class Utils {
         {
             f1.close();
         }
-        catch (IOException e) { e.printStackTrace();}
+        catch (IOException e) { handleException(e);}
+    }
+
+    public static void handleException(Exception e)
+    {
+        e.printStackTrace();
+        System.exit(-1);
     }
 }
