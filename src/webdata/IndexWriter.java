@@ -1,8 +1,8 @@
 package webdata;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -11,11 +11,31 @@ import java.util.ListIterator;
 
 public class IndexWriter
 {
-
-    public static final int AMOUNT_OF_DOCS_TO_READ = 100;
+    private RandomAccessFile invertedIndexFile = null;
+    private RandomAccessFile reviewDataFile = null;
+    public final int AMOUNT_OF_DOCS_TO_READ = 10;
     private HashMap<String, Integer> termIdMapping;
     private String dirName;
     private String inputFileName;
+    private StringBuilder accumulatedString = new StringBuilder();
+    private int pos = 0;
+    private Dictionary dict;
+    private int amountOfTokens;
+
+    /**
+     * this function writes the accumulated string ,which represents the encoded
+     * concatenation of the inverted index of the token collection, into the output-file
+     * in the form of binary data
+     */
+    private void writeInvertedIndex(){
+        try {
+            invertedIndexFile.seek(0);
+            invertedIndexFile.write(Utils.binaryStringToByte(accumulatedString.toString()));
+        }
+        catch (IOException e) {
+            Utils.handleException(e);
+        }
+    }
 
     /**
      * calculates the length of the common prefix of 2 Strings
@@ -73,23 +93,28 @@ public class IndexWriter
 
     /**
      * Iterates over input reviews given and collects all needed data and updates data structures used for creating
-     * dictionary and inverted index
+     * dictionary. In addition this method also writes to meta data file
      * @param wordCountTotal how many times did word appear in total
-     * @param reviewsMetaData list of lists with metadata of each review
      * @param numOfTotalTokens total amount of tokens in data
      * @param reviewId counter indicating review number
      * @param inputFile path to input file
      */
     private void processReviews(HashMap<String, Integer> wordCountTotal,
-                                ArrayList<ArrayList<String>> reviewsMetaData,
-                                int[] numOfTotalTokens, int[] reviewId, String inputFile)
+                                int[] numOfTotalTokens, int[] reviewId, String inputFile) throws IOException
     {
         ReviewPreprocessor rp = new ReviewPreprocessor(inputFile);
+        reviewDataFile.seek(0);
         while (rp.hasMoreReviews()) {
             ArrayList<String> reviewData = rp.getNextReview();
             String[] text = rp.getReviewText();
-            reviewsMetaData.add(getMetadata(reviewData.get(0), reviewData.get(1), reviewData.get(2), reviewData.get(3),
-                    Integer.toString(text.length)));
+
+            reviewDataFile.write(Utils.productIDToByteArray(reviewData.get(0))); // product id
+            reviewDataFile.write((byte)Integer.parseInt(reviewData.get(1))); // numerator
+            reviewDataFile.write((byte)Integer.parseInt(reviewData.get(2))); // denominator
+            reviewDataFile.write((byte)(int)Double.parseDouble(reviewData.get(3))); // score
+            int length = text.length;
+            reviewDataFile.write(length & 0xff); // length- first byte
+            reviewDataFile.write((length >> 8) & 0xff); // length- second byte
 
             HashMap<String, Integer> wordCountInThisReview = new HashMap<>();   // for counting how many time each word appeared in the text
             // iterate over text. count amount of tokens (with repetitions)
@@ -117,6 +142,7 @@ public class IndexWriter
                 if (prevVal != null) {
                     wordCountTotal.put(word, prevVal + wordCountInThisReview.get(word));
                 }
+                // next lines commented out since not relevant to this ex. TODO: after verification, delete
 
                 // update amount of reviews this word appears in
 //                prevVal = wordInReviewsCount.putIfAbsent(word, 1);
@@ -133,16 +159,118 @@ public class IndexWriter
     }
 
     /**
+     * encodes posting list and frequencies with gap encoding and delta coding
+     * @param postingList array list of ints that are the docIds a word appears in
+     * @param wordCountInEachReview matching frequencies of the word in the docs it appears in
+     */
+    private void encodePostingListAndFrequencies(ArrayList<Integer> postingList, ArrayList<Integer> wordCountInEachReview)
+    {
+        for(int i = 0; i < postingList.size(); i++){
+            int diff = postingList.get(i)- (i > 0 ? postingList.get(i-1) : 0); // compute gap from previous docId
+            String encodedIndex = Utils.gammaRepr(diff, true);
+            String encodedCount = Utils.gammaRepr(wordCountInEachReview.get(i), true);
+            accumulatedString.append(encodedIndex); // write next index to file
+            accumulatedString.append(encodedCount); // write token count to file
+            pos += encodedIndex.length();
+            pos += encodedCount.length();
+        }
+    }
+
+    /**
+     * Step 2 of index creation process. Read the merged sorted file from step 3. Create posting list and frequencies
+     * for each term and write them to II
+     */
+    private void readMergedAndCreateInvertedIndex()
+    {
+        DataInputStream dis = null;
+        FileInputStream fis = null;
+        try
+        {
+            // set up
+            fis = new FileInputStream(Utils.getPath(dirName, Utils.MERGED_FILE_NAME));
+            dis = new DataInputStream(fis);
+            int prevTermId = dis.readInt();
+            int prevDocId = dis.readInt();
+            int termId = prevTermId;
+            int docId = prevDocId;
+            ArrayList<Integer> postingList = new ArrayList<>();
+            ArrayList<Integer> wordCountInEachReview = new ArrayList<>();
+            int tokenIndex = 0;      // what token are we processing out of all tokens
+            int postingListPointerIndexOfDictionary = Dictionary.POSTING_INDEX_FIRST_OR_LAST;    // where in dictionary array should we write the pointer to the II
+            int inReviewCount = 0;      // counter of how many times did term appear in the same review (i.e doc frequency)
+
+            while (tokenIndex < amountOfTokens)       //go over all text tokens TODO: does this include productIds? we need them in II
+            {
+                if (termId == prevTermId)   // still same word
+                {
+                    if (docId == prevDocId)     // still same doc
+                    {
+                        inReviewCount++;
+                    }
+                    else    // different doc, write previous and restart count
+                    {
+                        postingList.add(prevDocId);
+                        wordCountInEachReview.add(inReviewCount);
+                        inReviewCount = 1;
+                    }
+                }
+                else        // different word:
+                // (1) write previous to lists
+                // (2) write to II and update ptr in dict
+                // (3) restart count and lists
+                {
+                    // (1)
+                    postingList.add(prevDocId);
+                    wordCountInEachReview.add(inReviewCount);
+
+                    // (2)
+                    // update posting list pointer in dictionary
+                    dict.setPostingPtr(postingListPointerIndexOfDictionary, pos);
+                    if ((tokenIndex + 1) % Dictionary.K == 0 || (tokenIndex + 2) % Dictionary.K == 0)     // if this was a last word of block or before last word of block we shift by 3
+                    {
+                        postingListPointerIndexOfDictionary += Dictionary.POSTING_INDEX_FIRST_OR_LAST + 1;
+                    }
+                    else    // other wise shift by 4
+                    {
+                        postingListPointerIndexOfDictionary += Dictionary.POSTING_INDEX_MIDDLE + 1;
+                    }
+
+                    // encode posting list and word frequencies
+                    encodePostingListAndFrequencies(postingList, wordCountInEachReview);
+
+                    //TODO: in previous ex we accumulated the whole encoding of the II and only at the end wrote it to
+                    // disk. maybe here we will need to write to disk every now and than instead.
+                    // for now nothing is written to disk. If we indeed split the writing to the disk, we'll need to
+                    // take care of numOfPaddedZeros
+
+                    // (3)
+                    inReviewCount = 1;
+                    postingList.clear();
+                    wordCountInEachReview.clear();
+                }
+                // get next pair
+                prevTermId = termId;
+                prevDocId = docId;
+                termId = dis.readInt();
+                docId = dis.readInt();
+                tokenIndex++;
+            }
+        }
+        catch (IOException e) { Utils.handleException(e);}
+    }
+
+    /**
      * Step 2 of index creation process. Parses all reviews in batches. For each batch of AMOUNT_OF_DOCS_TO_READ docs,
      * creates sequence of pairs (termId,docId). When finishes going over docs, sorts pairs and then writes sorted pairs
      * to file.
      * @return amount of files creates (==number of batches)
      */
-    private int sortBatches()
+    private int[] sortBatches()
     {
         ReviewPreprocessor rp = new ReviewPreprocessor(inputFileName);
         int docId = 1;
         int batchId = 0;
+        int totalAmount = 0;    //TODO maybe needs to be long
         String batchFileNameBase = "batch_";
         while (rp.hasMoreReviews())
         {
@@ -155,6 +283,7 @@ public class IndexWriter
                 {
                     IntPair pair = new IntPair(termIdMapping.get(word), docId);
                     pairs.add(pair);
+                    totalAmount++;
                 }
                 docId++;
             }
@@ -173,7 +302,7 @@ public class IndexWriter
             catch (IOException e) { Utils.handleException(e);}
             batchId++;
         }
-        return batchId -1;
+        return new int[]{batchId -1, totalAmount};
     }
 
     /**
@@ -236,7 +365,7 @@ public class IndexWriter
      * dir is the directory in which all index files will be created
      * if the directory does not exist, it should be created
      */
-    public void slowWrite(String inputFile, String dir)
+    public void write(String inputFile, String dir)
     {
         /*
         1) first pass: create dictionary and mapping of term: termId
@@ -252,20 +381,41 @@ public class IndexWriter
          */
         dirName = dir;
         inputFileName = inputFile;
+        try {
+            if (!Files.exists(Paths.get(dir)))
+            {
+                Files.createDirectory(Paths.get(dir));
+            }
+            invertedIndexFile = new RandomAccessFile(Utils.getPath(dir, Utils.INVERTED_INDEX_FILE_NAME), "rw");
+            reviewDataFile = new RandomAccessFile(Utils.getPath(dir, Utils.REVIEW_METADATA_FILE_NAME), "rw");
+        }
+        catch (IOException e) { Utils.handleException(e); }
 
         HashMap<String, Integer> wordCountTotal = new HashMap<>();
-        ArrayList<ArrayList<String>> reviewsMetaData = new ArrayList<>();
-        int[] numOfTotalTokens = {0};
+        int[] numOfTotalTokens = {0}; //TODO: maybe need long
         int[] reviewId = {1};
-        processReviews(wordCountTotal, reviewsMetaData, numOfTotalTokens, reviewId, inputFile);
+        try
+        {
+            processReviews(wordCountTotal, numOfTotalTokens, reviewId, inputFile);
+        }
+        catch (IOException e) { Utils.handleException(e); }
 
-        Dictionary dict = createDictionaryAndTermIdMap(wordCountTotal, numOfTotalTokens, reviewId);
+        dict = createDictionaryAndTermIdMap(wordCountTotal, numOfTotalTokens, reviewId);
         /* step 1 done */
 
-        int amountOfBatchFiles = sortBatches();
+        int[] res = sortBatches();
+        int amountOfBatchFiles = res[0];    // Eli might need this to know how many files there are
+        amountOfTokens = res[1];        // This is exactly how many pairs were written
 
         /* step 2 done */
 
+        /* merge batch files into one big file*/
+
+        /* step 3 done*/
+
+        readMergedAndCreateInvertedIndex();
+        writeInvertedIndex();
+        dict.writeDictToDisk(dir);
 
     }
 

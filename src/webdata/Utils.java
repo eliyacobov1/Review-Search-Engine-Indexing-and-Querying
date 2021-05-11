@@ -8,6 +8,10 @@ import java.util.ArrayList;
 
 class Utils {
     static final String DICTIONARY_NAME = "dictionary";
+    static final String MERGED_FILE_NAME = "mergedFile";
+    static final String INVERTED_INDEX_FILE_NAME = "inverted_index";
+    static final String REVIEW_METADATA_FILE_NAME = "reviews_meta-data";
+
 
     /**
      * removes empty strings from array of strings

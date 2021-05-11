@@ -29,7 +29,7 @@ public class Dictionary{
     //  of block (freq, len, postingPrt, prefix)
     private static final int PREFIX_INDEX_MIDDLE = 2;
     private static final int PREFIX_INDEX_LAST = 1;
-    private static final int POSTING_INDEX_FIRST_OR_LAST = 2;
+    static final int POSTING_INDEX_FIRST_OR_LAST = 2;
     static final int POSTING_INDEX_MIDDLE = 3;
     private static final int LENGTH_INDEX = 1;
 
@@ -237,6 +237,11 @@ public class Dictionary{
         else {
             return dictionary[getWordRow(blockIndex, wordOffset) + POSTING_INDEX_MIDDLE];
         }
+    }
+
+    void setPostingPtr(int wordIndex, int ptr)
+    {
+        dictionary[wordIndex] = ptr;
     }
 
     /**
