@@ -8,7 +8,7 @@ class ReviewPreprocessor
     private static final int META_DATA_FIELDS = 4;
     private BufferedReader reader;
     // [0] - productId, [1] helpfulness numerator, [2] - helpfulness denominator, [3] - score
-    private ArrayList<String> currentReviewMetaData;
+    protected ArrayList<String> currentReviewMetaData;
     private String[] reviewText;
 
     /**
