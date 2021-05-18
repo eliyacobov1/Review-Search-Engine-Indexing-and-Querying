@@ -25,19 +25,8 @@ public class IntPair implements Comparable<IntPair>
 
         if (this.termId == other.termId)
         {
-            if (this.docId < other.docId)
-            {
-                return -1;
-            }
-            else
-            {
-                return 1;
-            }
+            return Integer.compare(this.docId, other.docId);
         }
-
-        else
-        {
-            return 1;
-        }
+        return 1;
     }
 }

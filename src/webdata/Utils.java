@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 
 class Utils {
+    static final int AMOUNT_OF_DOCS_TO_PARSE = 1000000;      // TODO: for testing only
     static final String DICTIONARY_NAME = "dictionary";
     static final String MERGED_FILE_NAME = "mergedFile";
     static final String INVERTED_INDEX_FILE_NAME = "inverted_index";

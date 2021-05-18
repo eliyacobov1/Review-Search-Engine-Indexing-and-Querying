@@ -14,7 +14,7 @@ public class IndexWriter
     private RandomAccessFile invertedIndexFile = null;
     private RandomAccessFile reviewDataFile = null;
     private static final int NUM_OF_FILES_TO_MERGE = 2;
-    public final int AMOUNT_OF_DOCS_TO_READ_PER_BATCH = 100;
+    public final int AMOUNT_OF_DOCS_TO_READ_PER_BATCH = 100000;
     private HashMap<String, Integer> termIdMapping;
     private String dirName;
     private String inputFileName;
@@ -222,6 +222,9 @@ public class IndexWriter
                 wordCountTotal.put(productId, ++prevVal);
             }
             reviewId[0]++;
+            if (reviewId[0] == Utils.AMOUNT_OF_DOCS_TO_PARSE) // TODO: for testing only
+                break;
+
 //            for (String word : text) {
 //                numOfTotalTokens[0]++;
 //                prevVal = wordCountInThisReview.putIfAbsent(word, 1);
@@ -416,6 +419,8 @@ public class IndexWriter
             catch (IOException e) { Utils.handleException(e);}
             batchId++;
             pairs.clear();
+            if (docId == Utils.AMOUNT_OF_DOCS_TO_PARSE) // TODO: for testing only
+                break;
         }
         return new int[]{batchId, totalAmount};
     }
@@ -527,21 +532,21 @@ public class IndexWriter
         /* step 2 done */
 
         /* merge batch files into one big file*/
-        try {
-            externalSortAndMergeInvertedIndex(amountOfBatchFiles);
-        }
-        catch (IOException e) { Utils.handleException(e);}
-
-        /* step 3 done*/
-
-        dict = Dictionary.loadDictionary(dirName);
-        readMergedAndCreateInvertedIndex();
-        dict.lastWordEnding = pos;
-        dict.numPaddedZeroes = accumulatedString.length()%8 == 0 ?
-                0 : 8 - accumulatedString.length() % 8; // pad with zeroes in order to fit data into bytes
-        writeInvertedIndex();
-        dict.writeDictToDisk(dir);
-        Utils.safelyCloseStreams(invertedIndexFile, reviewDataFile);
+//        try {
+//            externalSortAndMergeInvertedIndex(amountOfBatchFiles);
+//        }
+//        catch (IOException e) { Utils.handleException(e);}
+//
+//        /* step 3 done*/
+//
+//        dict = Dictionary.loadDictionary(dirName);
+//        readMergedAndCreateInvertedIndex();
+//        dict.lastWordEnding = pos;
+//        dict.numPaddedZeroes = accumulatedString.length()%8 == 0 ?
+//                0 : 8 - accumulatedString.length() % 8; // pad with zeroes in order to fit data into bytes
+//        writeInvertedIndex();
+//        dict.writeDictToDisk(dir);
+//        Utils.safelyCloseStreams(invertedIndexFile, reviewDataFile);
 
         /* step 4 done. index created*/
     }
