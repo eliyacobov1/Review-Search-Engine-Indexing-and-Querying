@@ -2,8 +2,8 @@ package webdata;
 
 public class IntPair implements Comparable<IntPair>
 {
-    public final int termId;
-    public final int docId;
+    int termId;
+    int docId;
 
     public IntPair(int termId, int docId)
     {
@@ -11,13 +11,15 @@ public class IntPair implements Comparable<IntPair>
         this.docId = docId;
     }
 
+    void setVals(int termId, int docId){
+        this.termId = termId;
+        this.docId = docId;
+    }
 
 
     @Override
-    public int compareTo(IntPair other)
-    {
-        if (this.termId < other.termId)
-        {
+    public int compareTo(IntPair other) {
+        if (this.termId < other.termId) {
             return -1;
         }
 

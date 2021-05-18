@@ -1,5 +1,6 @@
 package webdata;
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.file.Path;
@@ -10,8 +11,46 @@ class Utils {
     static final String DICTIONARY_NAME = "dictionary";
     static final String MERGED_FILE_NAME = "mergedFile";
     static final String INVERTED_INDEX_FILE_NAME = "inverted_index";
-    static final String REVIEW_METADATA_FILE_NAME = "reviews_meta-data";
+    static final String REVIEW_METADATA_FILE_NAME = "reviews_meta_data";
+    static final String BATCH_FILE_NAME_BASE = "batch_";
 
+    /**
+     * this function writes the given pair to the given file
+     */
+    static void writePair(RandomAccessFile file, IntPair pair) throws IOException {
+        file.writeInt(pair.termId);
+        file.writeInt(pair.docId);
+    }
+
+    /**
+     * this function receives an array of files and deletes them (meant for temporary files)
+     */
+    static void deleteFiles(RandomAccessFile[] arr){
+//        for(RandomAccessFile file: arr) (new File(file.getChannel()));
+    }
+
+    /**
+     * this function finds the index of the minimal argument in an array of IntPair objects
+     */
+    static int findMinArgIndex(IntPair[] arr){
+        int min = 0;
+        for(int i = 1; i < arr.length; i++){
+            if(arr[i].compareTo(arr[min]) < 0) min = i;
+        }
+        return min;
+    }
+
+    /**
+     * this function fills the given array with numbers from the given file starting
+     * from the current marker location in the file
+     */
+    static void parseNextSequence(RandomAccessFile file, int[] arr) throws IOException {
+        for(int i = 0; i < arr.length; i+=2){
+            arr[i] = file.readInt();  // Token id
+            if(arr[i] == -1) return;  // in case end of file is reached
+            arr[i+1] = arr[i] = file.readInt();  // Doc id
+        }
+    }
 
     /**
      * removes empty strings from array of strings

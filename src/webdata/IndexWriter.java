@@ -13,7 +13,8 @@ public class IndexWriter
 {
     private RandomAccessFile invertedIndexFile = null;
     private RandomAccessFile reviewDataFile = null;
-    public final int AMOUNT_OF_DOCS_TO_READ = 10;
+    private static final int NUM_OF_FILES_TO_MERGE = 2;
+    public final int AMOUNT_OF_DOCS_TO_READ_PER_BATCH = 10;
     private HashMap<String, Integer> termIdMapping;
     private String dirName;
     private String inputFileName;
@@ -21,6 +22,86 @@ public class IndexWriter
     private int pos = 0;
     private Dictionary dict;
     private int amountOfTokens;
+
+    /**
+     * this function initializes a file array of the given size. These are the files created
+     * in phase 2 of the writing process and in each merge occurring in phase 3.
+     */
+    private RandomAccessFile[] initializeFileArray(int numFiles, int phase) throws FileNotFoundException {
+        RandomAccessFile[] fileArray = new RandomAccessFile[numFiles];
+        for (int i = 0; i < numFiles; i++) {
+            String batchFileName = numFiles == 1 ? Utils.MERGED_FILE_NAME : (phase > 0 ? phase : "")
+                    + Utils.BATCH_FILE_NAME_BASE + i;
+            fileArray[i] = new RandomAccessFile(Utils.getPath(dirName, batchFileName), "rw");
+        }
+        return fileArray;
+    }
+
+    /**
+     * this function, which is a part of phase 3 in the writing process, sorts and merges the file
+     * contents that of the files that are between the begin and end indexes of the given file array
+     * @param fileArray the array which contains the files that the function will merge
+     * @param begin begin index of the slice
+     * @param end end index of the slice
+     * @param sequenceSize the size of the sequence of numbers that is inspected in each sorting phase
+     * @param file the file into which all of the sorted and merged content will be written to
+     */
+    private void mergeFiles(RandomAccessFile[] fileArray, int begin, int end, int sequenceSize,
+                            RandomAccessFile file) throws IOException {
+        int numOfFiles = end-begin;  // the number fo files to merge
+        int[] sequencePointers = new int[numOfFiles];  // this array stores the pointer values of each sequence
+        IntPair[] pairs = new IntPair[numOfFiles]; // current pair of each of the sequences
+        int[][] currFileContents = new int[numOfFiles][sequenceSize*2];
+
+        for(int i = 0; i < numOfFiles; i++){ // read the initial sequences from each file
+            Utils.parseNextSequence(fileArray[begin+i], currFileContents[i]);
+            pairs[i] = new IntPair(currFileContents[i][0], currFileContents[i][1]);
+        }
+        int numUnfinishedFiles = numOfFiles;
+
+        while(numUnfinishedFiles > 0){ // while didn't finish writing content of all files
+            int minArg = Utils.findMinArgIndex(pairs);  // write the minimal pair to file
+            Utils.writePair(file, pairs[minArg]);
+            int currPointer = sequencePointers[minArg] += 2;
+
+            // advance pointer of sequence or load next sequence or mark end of file
+            if(currPointer >= sequenceSize * 2){ // reached the end of the current sequence
+                sequencePointers[minArg] = 0;
+                Utils.parseNextSequence(fileArray[begin+minArg], currFileContents[minArg]);
+                pairs[minArg].setVals(currFileContents[minArg][0], currFileContents[minArg][1]);
+                currPointer = 0;
+            }
+            if(currFileContents[minArg][currPointer] == -1){  // reached end of file
+                numUnfinishedFiles -= 1;
+                pairs[minArg].setVals(amountOfTokens, 0);
+            }
+            else pairs[minArg].setVals(currFileContents[minArg][currPointer],
+                    currFileContents[minArg][currPointer+1]);
+        }
+    }
+
+
+    /**
+     * this function receives the files that were created during phase 2 of the index writing
+     * process and uses external sort in order to merge and sort their contents into a single file
+     */
+    private void externalSortAndMergeInvertedIndex(int numFiles) throws IOException {
+        int mergePhase = 0;
+        int currNumFiles = numFiles;
+        RandomAccessFile[] fileArray = initializeFileArray(numFiles, mergePhase);
+        while(currNumFiles > 1){
+            int sequenceSize = (int)(AMOUNT_OF_DOCS_TO_READ_PER_BATCH / (double)currNumFiles) + 1;
+            int numFilesAfterMerge = (int)Math.ceil(currNumFiles / (double)NUM_OF_FILES_TO_MERGE);
+            RandomAccessFile[] mergedFileArray = initializeFileArray(numFilesAfterMerge, mergePhase);
+            for(int i = 0; i < currNumFiles; i += NUM_OF_FILES_TO_MERGE){
+                mergeFiles(fileArray, i, i+NUM_OF_FILES_TO_MERGE, sequenceSize,
+                        mergedFileArray[i / NUM_OF_FILES_TO_MERGE]);
+            }
+            fileArray = mergedFileArray;
+            currNumFiles = numFilesAfterMerge;
+            mergePhase++;
+        }
+    }
 
     /**
      * this function writes the accumulated string ,which represents the encoded
@@ -108,6 +189,7 @@ public class IndexWriter
             ArrayList<String> reviewData = rp.getNextReview();
             String[] text = rp.getReviewText();
 
+            // write meta data to metadata file
             reviewDataFile.write(Utils.productIDToByteArray(reviewData.get(0))); // product id
             reviewDataFile.write((byte)Integer.parseInt(reviewData.get(1))); // numerator
             reviewDataFile.write((byte)Integer.parseInt(reviewData.get(2))); // denominator
@@ -116,7 +198,7 @@ public class IndexWriter
             reviewDataFile.write(length & 0xff); // length- first byte
             reviewDataFile.write((length >> 8) & 0xff); // length- second byte
 
-            // TODO: think if the why this function works can be more efficiant. do we need to count how many times the
+            // TODO: think if the way this function works can be more efficient. do we need to count how many times the
             //  word appeared in the each text? or can we simply go over the text and update wordCountTotal
             //  (and add productId)
 
@@ -170,7 +252,7 @@ public class IndexWriter
     }
 
     /**
-     * Step 2 of index creation process. Read the merged sorted file from step 3. Create posting list and frequencies
+     * Step 4 of index creation process. Read the merged sorted file from step 3. Create posting list and frequencies
      * for each term and write them to II
      */
     private void readMergedAndCreateInvertedIndex()
@@ -191,8 +273,10 @@ public class IndexWriter
             int tokenIndex = 0;      // what token are we processing out of all tokens
             int postingListPointerIndexOfDictionary = Dictionary.POSTING_INDEX_FIRST_OR_LAST;    // where in dictionary array should we write the pointer to the II
             int inReviewCount = 0;      // counter of how many times did term appear in the same review (i.e doc frequency)
+            int distinctTermId = 0;
 
-            while (tokenIndex < amountOfTokens)       //go over all text tokens TODO: does this include productIds? we need them in II
+//            while (tokenIndex < amountOfTokens)       //go over all text tokens
+            while (true)    //go over all text tokens. at end of loop there is a try/catch that breaks from the loop when reaching EOF
             {
                 if (termId == prevTermId)   // still same word
                 {
@@ -219,7 +303,8 @@ public class IndexWriter
                     // (2)
                     // update posting list pointer in dictionary
                     dict.setPostingPtr(postingListPointerIndexOfDictionary, pos);
-                    if ((tokenIndex + 1) % Dictionary.K == 0 || (tokenIndex + 2) % Dictionary.K == 0)     // if this was a last word of block or before last word of block we shift by 3
+                    // TODO: distinctTermId ?= termId when working with whole corpus. fix after debugging of part 3
+                    if ((distinctTermId + 1) % Dictionary.K == 0 || (distinctTermId + 2) % Dictionary.K == 0)     // if this was a last word of block or before last word of block we shift by 3
                     {
                         postingListPointerIndexOfDictionary += Dictionary.POSTING_INDEX_FIRST_OR_LAST + 1;
                     }
@@ -237,6 +322,7 @@ public class IndexWriter
                     // take care of numOfPaddedZeros
 
                     // (3)
+                    distinctTermId++;
                     inReviewCount = 1;
                     postingList.clear();
                     wordCountInEachReview.clear();
@@ -244,16 +330,28 @@ public class IndexWriter
                 // get next pair
                 prevTermId = termId;
                 prevDocId = docId;
-                termId = dis.readInt();
+                try{
+                    termId = dis.readInt();
+                }
+                catch (EOFException e){
+                    // reached EOF of mergedFile - exit loop
+                    break;
+                }
                 docId = dis.readInt();
                 tokenIndex++;
             }
+
+            // add last term to II
+            postingList.add(docId);
+            wordCountInEachReview.add(inReviewCount);
+            dict.setPostingPtr(postingListPointerIndexOfDictionary, pos);
+            encodePostingListAndFrequencies(postingList, wordCountInEachReview);
         }
         catch (IOException e) { Utils.handleException(e);}
     }
 
     /**
-     * Step 2 of index creation process. Parses all reviews in batches. For each batch of AMOUNT_OF_DOCS_TO_READ docs,
+     * Step 2 of index creation process. Parses all reviews in batches. For each batch of AMOUNT_OF_DOCS_TO_READ_PER_BATCH docs,
      * creates sequence of pairs (termId,docId). When finishes going over docs, sorts pairs and then writes sorted pairs
      * to file.
      * @return amount of files creates (==number of batches)
@@ -268,8 +366,10 @@ public class IndexWriter
         ArrayList<IntPair> pairs = new ArrayList<>();
         while (rp.hasMoreReviews())
         {
-            // read AMOUNT_OF_DOCS_TO_READ reviews and create pairs of (termId, docId)
-            for (int i=0; i < AMOUNT_OF_DOCS_TO_READ; i++)
+            int amountOfDocsLeft = dict.amountOfReviews - (docId - 1);
+            int howManyToRead = Math.min(amountOfDocsLeft, AMOUNT_OF_DOCS_TO_READ_PER_BATCH);
+            // read AMOUNT_OF_DOCS_TO_READ_PER_BATCH (or what is left from the reviews) reviews and create pairs of (termId, docId)
+            for (int i = 0; i < howManyToRead; i++)
             {
                 rp.getNextReview();
                 String[] text = rp.getReviewText();
@@ -405,6 +505,10 @@ public class IndexWriter
         /* step 2 done */
 
         /* merge batch files into one big file*/
+        try {
+            externalSortAndMergeInvertedIndex(amountOfBatchFiles);
+        }
+        catch (IOException e) { Utils.handleException(e);}
 
         /* step 3 done*/
 
