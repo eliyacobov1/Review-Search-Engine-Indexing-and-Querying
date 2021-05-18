@@ -32,20 +32,6 @@ public class IndexReader {
      */
     private static final String reviewDataFileName = "reviews meta data";
 
-    /**
-     * reads an array of ints that was previously saved to disk. how much to read is stored before the data itself.
-     * @param dis DataInputStream to read from
-     * @return array of ints that was read
-     */
-    private int[] readIntArray(DataInputStream dis) throws IOException {
-        int arrayLen = dis.readInt();   // first read the length of the array
-        int[] array = new int[arrayLen];
-        for (int i = 0; i < arrayLen; i++)
-        {
-            array[i] = dis.readInt();
-        }
-        return array;
-    }
 
     /**
      * this function returns a string which represents the bit data
@@ -70,51 +56,10 @@ public class IndexReader {
 
 
     /**
-     * reads the dictionary from the dist to memory
-     * @param dir directory where dictionary is stored
-     */
-    private void loadDictionary(String dir) {
-
-        /*-------------------- reading ints and string --------------------*/
-        DataInputStream dis = null;
-        FileInputStream fis = null;
-
-        try
-        {
-            fis = new FileInputStream(Utils.getPath(dir, Utils.DICTIONARY_NAME));
-            dis = new DataInputStream(fis);
-            int concatStrLen = dis.readInt();
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0 ; i < concatStrLen; i++) {
-                sb.append(dis.readChar());
-            }
-            String concatStr = sb.toString();
-
-            int tokenSizeOfReviews = dis.readInt();
-
-            int amountOfReviews = dis.readInt();
-
-            int[] blockArray = readIntArray(dis);
-            int[] dict = readIntArray(dis);
-            int amountOfPaddedZeros = dis.readInt();
-            int lastWordEnding = dis.readInt();
-            int sizeOfLastBlock = dis.readInt();
-            dictionary = new Dictionary(tokenSizeOfReviews, concatStr, blockArray, dict, amountOfReviews, amountOfPaddedZeros, lastWordEnding, sizeOfLastBlock);
-        }
-        catch (IOException e) {
-            Utils.handleException(e);
-        }
-        finally {
-            Utils.safelyCloseStreams(fis, dis);
-        }
-    }
-
-
-    /**
      * Creates an IndexReader which will read from the given directory
      */
     public IndexReader(String dir) {
-        loadDictionary(dir);
+        dictionary = Dictionary.loadDictionary(dir);
         numPaddedZeroes = dictionary.numPaddedZeroes;
         dirName = dir;
     }

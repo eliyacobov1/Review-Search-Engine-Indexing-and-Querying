@@ -1,8 +1,5 @@
 package webdata;
-import java.io.Closeable;
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -13,6 +10,22 @@ class Utils {
     static final String INVERTED_INDEX_FILE_NAME = "inverted_index";
     static final String REVIEW_METADATA_FILE_NAME = "reviews_meta_data";
     static final String BATCH_FILE_NAME_BASE = "batch_";
+
+
+    /**
+     * reads an array of ints that was previously saved to disk. how much to read is stored before the data itself.
+     * @param dis DataInputStream to read from
+     * @return array of ints that was read
+     */
+    public static int[] readIntArray(DataInputStream dis) throws IOException {
+        int arrayLen = dis.readInt();   // first read the length of the array
+        int[] array = new int[arrayLen];
+        for (int i = 0; i < arrayLen; i++)
+        {
+            array[i] = dis.readInt();
+        }
+        return array;
+    }
 
     /**
      * this function writes the given pair to the given file

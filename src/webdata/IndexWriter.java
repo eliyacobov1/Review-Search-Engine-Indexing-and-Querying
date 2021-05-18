@@ -14,7 +14,7 @@ public class IndexWriter
     private RandomAccessFile invertedIndexFile = null;
     private RandomAccessFile reviewDataFile = null;
     private static final int NUM_OF_FILES_TO_MERGE = 2;
-    public final int AMOUNT_OF_DOCS_TO_READ_PER_BATCH = 10;
+    public final int AMOUNT_OF_DOCS_TO_READ_PER_BATCH = 100;
     private HashMap<String, Integer> termIdMapping;
     private String dirName;
     private String inputFileName;
@@ -22,6 +22,7 @@ public class IndexWriter
     private int pos = 0;
     private Dictionary dict;
     private int amountOfTokens;
+    private int amountOfReviews;
 
     /**
      * this function initializes a file array of the given size. These are the files created
@@ -206,30 +207,44 @@ public class IndexWriter
             // iterate over text. count amount of tokens (with repetitions)
             // and count amount of times word appeared in text
             Integer prevVal;
-            for (String word : text) {
+            for (String word : text)
+            {
                 numOfTotalTokens[0]++;
-                prevVal = wordCountInThisReview.putIfAbsent(word, 1);
+                prevVal = wordCountTotal.putIfAbsent(word, 1);
                 if (prevVal != null) {
-                    wordCountInThisReview.put(word, ++prevVal);
+                    wordCountTotal.put(word, ++prevVal);
                 }
             }
-
             // enter/update "productId" into data structures
             String productId = reviewData.get(0);
-            prevVal = wordCountInThisReview.putIfAbsent(productId, 1);
+            prevVal = wordCountTotal.putIfAbsent(productId, 1);
             if (prevVal != null) {
-                wordCountInThisReview.put(productId, ++prevVal);
-            }
-
-            // enter/update each significant word into data structures
-            for (String word : wordCountInThisReview.keySet()) {
-                // update total count of this word
-                prevVal = wordCountTotal.putIfAbsent(word, wordCountInThisReview.get(word));
-                if (prevVal != null) {
-                    wordCountTotal.put(word, prevVal + wordCountInThisReview.get(word));
-                }
+                wordCountTotal.put(productId, ++prevVal);
             }
             reviewId[0]++;
+//            for (String word : text) {
+//                numOfTotalTokens[0]++;
+//                prevVal = wordCountInThisReview.putIfAbsent(word, 1);
+//                if (prevVal != null) {
+//                    wordCountInThisReview.put(word, ++prevVal);
+//                }
+//            }
+//
+//            // enter/update "productId" into data structures
+//            String productId = reviewData.get(0);
+//            prevVal = wordCountInThisReview.putIfAbsent(productId, 1);
+//            if (prevVal != null) {
+//                wordCountInThisReview.put(productId, ++prevVal);
+//            }
+//
+//            // enter/update each significant word into data structures
+//            for (String word : wordCountInThisReview.keySet()) {
+//                // update total count of this word
+//                prevVal = wordCountTotal.putIfAbsent(word, wordCountInThisReview.get(word));
+//                if (prevVal != null) {
+//                    wordCountTotal.put(word, prevVal + wordCountInThisReview.get(word));
+//                }
+//            }
         }
     }
 
@@ -366,7 +381,7 @@ public class IndexWriter
         ArrayList<IntPair> pairs = new ArrayList<>();
         while (rp.hasMoreReviews())
         {
-            int amountOfDocsLeft = dict.amountOfReviews - (docId - 1);
+            int amountOfDocsLeft = amountOfReviews - (docId - 1);
             int howManyToRead = Math.min(amountOfDocsLeft, AMOUNT_OF_DOCS_TO_READ_PER_BATCH);
             // read AMOUNT_OF_DOCS_TO_READ_PER_BATCH (or what is left from the reviews) reviews and create pairs of (termId, docId)
             for (int i = 0; i < howManyToRead; i++)
@@ -410,9 +425,9 @@ public class IndexWriter
      * @param wordCountTotal how many times did word appear in total
      * @param numOfTotalTokens total amount of tokens in data
      * @param reviewId counter indicating review number
-     * @return Dictionary object with all data except for 1) pointers to invertedIndex 2) lastWordEnding 3) numPaddedZeroes
+//     * @return Dictionary object with all data except for 1) pointers to invertedIndex 2) lastWordEnding 3) numPaddedZeroes
      */
-    private Dictionary createDictionaryAndTermIdMap(HashMap<String, Integer> wordCountTotal, int[] numOfTotalTokens,
+    private void createDictionaryAndTermIdMap(HashMap<String, Integer> wordCountTotal, int[] numOfTotalTokens,
                                                               int[] reviewId)
     {
         ArrayList<String> sortedVocabulary = new ArrayList<>(wordCountTotal.keySet());
@@ -450,8 +465,8 @@ public class IndexWriter
         }
         dict.sizeOfLastBlock = ((index) % Dictionary.K) +1;
         dict.amountOfReviews = reviewId[0] - 1;
-
-        return dict;
+        dict.writeDictToDisk(dirName);
+        amountOfReviews = reviewId[0] - 1;
     }
 
     /**
@@ -474,6 +489,7 @@ public class IndexWriter
         3) merge sorted files to one big sorted file
         4) read big sorted file and create II (including all steps for it: compression, update posting list pointer...)
          */
+        /* ------------------- open files ------------------- */
         dirName = dir;
         inputFileName = inputFile;
         try {
@@ -486,6 +502,7 @@ public class IndexWriter
         }
         catch (IOException e) { Utils.handleException(e); }
 
+        /* ------------- preprocess reviews (metadata of reviews and counting of terms and tokens) ------------- */
         HashMap<String, Integer> wordCountTotal = new HashMap<>();      // mapping term: total frequency in whole corpus
         int[] numOfTotalTokens = {0}; //TODO: maybe need long, int can hold "only" ~2.14 billion
         int[] reviewId = {1};
@@ -495,7 +512,12 @@ public class IndexWriter
         }
         catch (IOException e) { Utils.handleException(e); }
 
-        dict = createDictionaryAndTermIdMap(wordCountTotal, numOfTotalTokens, reviewId);
+        createDictionaryAndTermIdMap(wordCountTotal, numOfTotalTokens, reviewId);
+
+        //TODO: idea #2 for memory optimization - We don't need the dictionary at all until step 4 when we write the II.
+        // So, lets cache it in createDictionaryAndTermIdMap to a file, and read it into dict before step 4 starts,
+        // leaving memory as free as possible for external sorting
+
         /* step 1 done */
 
         int[] res = sortBatches();
@@ -512,6 +534,7 @@ public class IndexWriter
 
         /* step 3 done*/
 
+        dict = Dictionary.loadDictionary(dirName);
         readMergedAndCreateInvertedIndex();
         dict.lastWordEnding = pos;
         dict.numPaddedZeroes = accumulatedString.length()%8 == 0 ?

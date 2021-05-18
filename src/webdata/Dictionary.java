@@ -269,4 +269,45 @@ public class Dictionary{
             return dictionary[getWordRow(blockIndex, wordOffset) + PREFIX_INDEX_MIDDLE];
         }
     }
+
+    /**
+     * reads the dictionary from the disk to memory
+     * @param dir directory where dictionary is stored
+     */
+    public static Dictionary loadDictionary(String dir) {
+
+        /*-------------------- reading ints and string --------------------*/
+        DataInputStream dis = null;
+        FileInputStream fis = null;
+        Dictionary newDictionary = null;
+        try
+        {
+            fis = new FileInputStream(Utils.getPath(dir, Utils.DICTIONARY_NAME));
+            dis = new DataInputStream(fis);
+            int concatStrLen = dis.readInt();
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0 ; i < concatStrLen; i++) {
+                sb.append(dis.readChar());
+            }
+            String concatStr = sb.toString();
+
+            int tokenSizeOfReviews = dis.readInt();
+
+            int amountOfReviews = dis.readInt();
+
+            int[] blockArray = Utils.readIntArray(dis);
+            int[] dict = Utils.readIntArray(dis);
+            int amountOfPaddedZeros = dis.readInt();
+            int lastWordEnding = dis.readInt();
+            int sizeOfLastBlock = dis.readInt();
+            newDictionary =  new Dictionary(tokenSizeOfReviews, concatStr, blockArray, dict, amountOfReviews, amountOfPaddedZeros, lastWordEnding, sizeOfLastBlock);
+        }
+        catch (IOException e) {
+            Utils.handleException(e);
+        }
+        finally {
+            Utils.safelyCloseStreams(fis, dis);
+        }
+        return newDictionary;
+    }
 }
