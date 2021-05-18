@@ -532,21 +532,20 @@ public class IndexWriter
         /* step 2 done */
 
         /* merge batch files into one big file*/
-//        try {
-//            externalSortAndMergeInvertedIndex(amountOfBatchFiles);
-//        }
-//        catch (IOException e) { Utils.handleException(e);}
-//
-//        /* step 3 done*/
-//
-//        dict = Dictionary.loadDictionary(dirName);
-//        readMergedAndCreateInvertedIndex();
-//        dict.lastWordEnding = pos;
-//        dict.numPaddedZeroes = accumulatedString.length()%8 == 0 ?
-//                0 : 8 - accumulatedString.length() % 8; // pad with zeroes in order to fit data into bytes
-//        writeInvertedIndex();
-//        dict.writeDictToDisk(dir);
-//        Utils.safelyCloseStreams(invertedIndexFile, reviewDataFile);
+        try {
+            externalSortAndMergeInvertedIndex(amountOfBatchFiles);
+        }
+        catch (IOException e) { Utils.handleException(e);}
+
+        /* step 3 done*/
+        dict = Dictionary.loadDictionary(dirName);
+        readMergedAndCreateInvertedIndex();
+        dict.lastWordEnding = pos;
+        dict.numPaddedZeroes = accumulatedString.length()%8 == 0 ?
+                0 : 8 - accumulatedString.length() % 8; // pad with zeroes in order to fit data into bytes
+        writeInvertedIndex();
+        dict.writeDictToDisk(dir);
+        Utils.safelyCloseStreams(invertedIndexFile, reviewDataFile);
 
         /* step 4 done. index created*/
     }
