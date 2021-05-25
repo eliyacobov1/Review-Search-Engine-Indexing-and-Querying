@@ -14,7 +14,7 @@ public class IndexWriter
     private DataOutputStream invertedIndexWriter = null;
     private FileOutputStream reviewDataFile = null;
     private static final int NUM_OF_FILES_TO_MERGE = 4;
-    public final int AMOUNT_OF_DOCS_TO_READ_PER_BATCH = 250000;
+    public final int AMOUNT_OF_DOCS_TO_READ_PER_BATCH = 50000;
     public final int AMOUNT_OF_PAIRS_TO_READ_TO_MAIN_MEM = 25000;
     public final int AMOUNT_OF_WORDS_PER_FLUSH_TO_II = 10000;
     private HashMap<String, Integer> termIdMapping;
@@ -168,14 +168,19 @@ public class IndexWriter
 
         while(currNumFiles > 1){
             System.out.format("merge phase %d started\n", mergePhase);  // TODO delete this line
+            beginSubStepTime = System.currentTimeMillis();// TODO delete this line
             int sequenceSize = (int)(AMOUNT_OF_PAIRS_TO_READ_TO_MAIN_MEM / (double)currNumFiles) + 1;
             int numFilesAfterMerge = (int)Math.ceil(currNumFiles / (double)NUM_OF_FILES_TO_MERGE);
             String[] outputFileNames = getMergeFileNames(numFilesAfterMerge, mergePhase+1);
             FileOutputStream[] mergedFileArray = initializeFileOutputArray(numFilesAfterMerge, mergePhase+1);
             DataOutputStream[] mergedDataArray = Utils.fileOutputArrayToDataOutputArray(mergedFileArray);
             for(int i = 0; i < currNumFiles; i += NUM_OF_FILES_TO_MERGE){
+                if (i == 0 || i == 4)
+                    beginSubSubStepTime = System.currentTimeMillis();// TODO delete this line
                 mergeFiles(inputDataArray, i, i+NUM_OF_FILES_TO_MERGE, sequenceSize,
                         mergedDataArray[i / NUM_OF_FILES_TO_MERGE]);
+                if (i == 0 || i == 4)
+                    Utils.printTime("\t\tmerge step " + i, (System.currentTimeMillis() - beginSubSubStepTime), Utils.SECONDS);    // TODO delete this line
             }
 
             Utils.closeRafStreams(inputDataArray);
@@ -183,6 +188,7 @@ public class IndexWriter
             inputFileNames = outputFileNames;
             inputDataArray = outputToInputDataStream(outputFileNames);
             currNumFiles = numFilesAfterMerge;
+            Utils.printTime("\tmerge phase " + mergePhase, (System.currentTimeMillis() - beginSubStepTime), Utils.SECONDS);    // TODO delete this line
             mergePhase++;
         }
         inputDataArray[0].close(); // close the merged file stream
@@ -512,6 +518,7 @@ public class IndexWriter
         Collections.sort(sortedVocabulary); // sort vocabulary to insert into dictionary and index
         Utils.printTime("\t\tsort Vocabulary", (System.currentTimeMillis() - beginSubSubStepTime), Utils.SECONDS);    // TODO delete this line
 
+        beginSubSubStepTime = System.currentTimeMillis();   // TODO delete this line
         Dictionary dict = new Dictionary(sortedVocabulary.size(), numOfTotalTokens[0]);  // local var for saving to disk and having more free memory
         termIdMapping = new HashMap<>();
 
@@ -544,6 +551,7 @@ public class IndexWriter
         }
         dict.sizeOfLastBlock = ((index) % Dictionary.K) +1;
         dict.amountOfReviews = reviewId[0] - 1;
+        Utils.printTime("\t\titerate vocabulary and fill dictionary", (System.currentTimeMillis() - beginSubSubStepTime), Utils.MINUTES);    // TODO delete this line
         beginSubSubStepTime = System.currentTimeMillis();   // TODO delete this line
         dict.writeDictToDisk(dirName);      // cache dictionary to disk
         Utils.printTime("\t\twrite dict to disk", (System.currentTimeMillis() - beginSubSubStepTime), Utils.SECONDS);    // TODO delete this line
@@ -598,7 +606,7 @@ public class IndexWriter
         System.out.println("/* step 1 starts */"); // TODO delete this line
         long beginTimeStep = System.currentTimeMillis();    // TODO delete this line
 
-        HashMap<String, Integer> wordCountTotal = new HashMap<>();      // mapping term: total frequency in whole corpus
+        HashMap<String, Integer> wordCountTotal = new HashMap<>();      // mapping term: total frequency in whole corpus TODO: this can be huge, get rid of it for more memory space
         int[] numOfTotalTokens = {0}; //TODO: maybe need long, int can hold "only" ~2.14 billion
         int[] reviewId = {1};
         try
