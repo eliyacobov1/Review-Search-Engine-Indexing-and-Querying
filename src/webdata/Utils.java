@@ -5,12 +5,31 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 
 class Utils {
-    static final int AMOUNT_OF_DOCS_TO_PARSE = 1000000;      // TODO: for testing only
+    static final int SECONDS = 0;
+    static final int MINUTES = 1;
+    static final int MILLISECONDS = 2;
+
+    static final int AMOUNT_OF_DOCS_TO_PARSE = 10000000;      // TODO: for testing only
     static final String DICTIONARY_NAME = "dictionary";
     static final String MERGED_FILE_NAME = "mergedFile";
     static final String INVERTED_INDEX_FILE_NAME = "inverted_index";
     static final String REVIEW_METADATA_FILE_NAME = "reviews_meta_data";
     static final String BATCH_FILE_NAME_BASE = "batch_";
+
+
+    static void printFile(RandomAccessFile file) throws IOException {  // TODO this function is for debugging only
+        file.seek(0);
+        while(true) {
+            try {
+                int x = file.readInt();
+                System.out.println(x);
+            } catch (EOFException e) {
+                System.out.println("Done printing file");
+                file.seek(0);
+                return;
+            }
+        }
+    }
 
 
     /**
@@ -31,16 +50,65 @@ class Utils {
     /**
      * this function writes the given pair to the given file
      */
-    static void writePair(RandomAccessFile file, IntPair pair) throws IOException {
+    static void writePair(DataOutputStream file, IntPair pair) throws IOException {
         file.writeInt(pair.termId);
         file.writeInt(pair.docId);
     }
 
     /**
+     * this function receives an array of RAF object and closes each of it's streams
+     */
+    static void closeRafStreams(RandomAccessFile[] files) throws IOException {
+        for(RandomAccessFile file: files) file.close();
+    }
+
+    /**
+     * this function receives an array of RAF object and closes each of it's streams
+     */
+    static void closeRafStreams(OutputStream[] files) throws IOException {
+        for(OutputStream file: files) file.close();
+    }
+
+    /**
+     * this function receives an array of InputStream object and closes each of it's streams
+     */
+    static void closeRafStreams(InputStream[] files) throws IOException {
+        for(InputStream file: files) file.close();
+    }
+
+    /**
+     * this function converts the given file array into a DataInputStream array
+     */
+    static DataInputStream[] fileInputArrayToDataInputArray(FileInputStream[] arr) throws FileNotFoundException {
+        DataInputStream[] files = new DataInputStream[arr.length];
+        for(int i = 0; i < arr.length; i++) files[i] = new DataInputStream(new BufferedInputStream(arr[i]));
+        return files;
+    }
+
+    /**
+     * this function converts the given file array into a DataOutputStream array
+     */
+    static DataOutputStream[] fileOutputArrayToDataOutputArray(FileOutputStream[] arr) throws FileNotFoundException{
+        DataOutputStream[] files = new DataOutputStream[arr.length];
+        for(int i = 0; i < arr.length; i++) files[i] = new DataOutputStream(new BufferedOutputStream(arr[i]));
+        return files;
+    }
+
+    /**
      * this function receives an array of files and deletes them (meant for temporary files)
      */
-    static void deleteFiles(RandomAccessFile[] arr){
-//        for(RandomAccessFile file: arr) (new File(file.getChannel()));
+    static void deleteFiles(File[] arr){
+        for(File file: arr) file.deleteOnExit();
+    }
+
+    /**
+     * this function receives an array of files names and deletes them (meant for temporary files)
+     */
+    static void deleteFiles(String[] arr, String dirName){
+        for(String fileName: arr){
+            new File(getPath(dirName, fileName)).deleteOnExit();
+//            new File(getPath(dirName, fileName)).delete();
+        }
     }
 
     /**
@@ -58,11 +126,15 @@ class Utils {
      * this function fills the given array with numbers from the given file starting
      * from the current marker location in the file
      */
-    static void parseNextSequence(RandomAccessFile file, int[] arr) throws IOException {
+    static void parseNextSequence(DataInputStream file, int[] arr) throws IOException {
         for(int i = 0; i < arr.length; i+=2){
-            arr[i] = file.readInt();  // Token id
-            if(arr[i] == -1) return;  // in case end of file is reached
-            arr[i+1] = arr[i] = file.readInt();  // Doc id
+            try {
+                arr[i] = file.readInt();  // Token id
+                arr[i+1] = file.readInt();  // Doc id
+            } catch (EOFException e) {
+                arr[i] = -1;
+                return; // in case end of file is reached
+            }
         }
     }
 
@@ -269,5 +341,26 @@ class Utils {
     {
         e.printStackTrace();
         System.exit(-1);
+    }
+
+    public static void printTime(String step, long timeInMs, int convertTo){
+        System.out.println(step + " done.");
+        float time = 0;
+        String unit = "";
+        switch (convertTo) {
+            case MILLISECONDS -> {
+                time = timeInMs;
+                unit = " milliseconds\n";
+            }
+            case SECONDS -> {
+                time = (float) timeInMs / 1000f;
+                unit = " seconds\n";
+            }
+            case MINUTES -> {
+                time = ((float) timeInMs / 1000f) / 60;
+                unit = " minutes\n";
+            }
+        }
+        System.out.println("Time: " + time + unit);
     }
 }

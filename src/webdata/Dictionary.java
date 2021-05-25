@@ -84,13 +84,13 @@ public class Dictionary{
      * @param dir path to directory where dictionary should be written to
      */
     void writeDictToDisk(String dir){
-        /*-------------------- writing ints and string --------------------*/
+        // TODO: think how to make more efficient writing
         DataOutputStream dos = null;
         FileOutputStream fos = null;
 
         try {
             fos = new FileOutputStream(Utils.getPath(dir, Utils.DICTIONARY_NAME));
-            dos  = new DataOutputStream(fos);
+            dos  = new DataOutputStream(new BufferedOutputStream(fos));
 
             dos.writeInt(concatStr.length());
             dos.writeChars(concatStr);
@@ -283,7 +283,7 @@ public class Dictionary{
         try
         {
             fis = new FileInputStream(Utils.getPath(dir, Utils.DICTIONARY_NAME));
-            dis = new DataInputStream(fis);
+            dis = new DataInputStream(new BufferedInputStream(fis));
             int concatStrLen = dis.readInt();
             StringBuilder sb = new StringBuilder();
             for (int i = 0 ; i < concatStrLen; i++) {

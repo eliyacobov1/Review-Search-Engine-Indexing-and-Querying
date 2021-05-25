@@ -3,18 +3,20 @@ package webdata;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.ListIterator;
+import java.util.*;
 
 
 public class IndexWriter
 {
-    private RandomAccessFile invertedIndexFile = null;
-    private RandomAccessFile reviewDataFile = null;
-    private static final int NUM_OF_FILES_TO_MERGE = 2;
-    public final int AMOUNT_OF_DOCS_TO_READ_PER_BATCH = 100000;
+    long beginSubStepTime;
+    long beginSubSubStepTime;
+    private FileOutputStream invertedIndexFile = null;
+    private DataOutputStream invertedIndexWriter = null;
+    private FileOutputStream reviewDataFile = null;
+    private static final int NUM_OF_FILES_TO_MERGE = 4;
+    public final int AMOUNT_OF_DOCS_TO_READ_PER_BATCH = 250000;
+    public final int AMOUNT_OF_PAIRS_TO_READ_TO_MAIN_MEM = 25000;
+    public final int AMOUNT_OF_WORDS_PER_FLUSH_TO_II = 10000;
     private HashMap<String, Integer> termIdMapping;
     private String dirName;
     private String inputFileName;
@@ -25,61 +27,132 @@ public class IndexWriter
     private int amountOfReviews;
 
     /**
-     * this function initializes a file array of the given size. These are the files created
+     * this function initializes a file input stream array of the given size. These are the files created
      * in phase 2 of the writing process and in each merge occurring in phase 3.
      */
-    private RandomAccessFile[] initializeFileArray(int numFiles, int phase) throws FileNotFoundException {
-        RandomAccessFile[] fileArray = new RandomAccessFile[numFiles];
+    private FileInputStream[] initializeFileInputArray(int numFiles, int phase) throws FileNotFoundException {
+        FileInputStream[] fileArray = new FileInputStream[numFiles];
         for (int i = 0; i < numFiles; i++) {
-            String batchFileName = numFiles == 1 ? Utils.MERGED_FILE_NAME : (phase > 0 ? phase : "")
-                    + Utils.BATCH_FILE_NAME_BASE + i;
-            fileArray[i] = new RandomAccessFile(Utils.getPath(dirName, batchFileName), "rw");
+            String batchFileName = numFiles == 1 ? Utils.MERGED_FILE_NAME : ((phase > 0 ? "phase" + phase + "_" : "")
+                    + Utils.BATCH_FILE_NAME_BASE + i);
+            fileArray[i] = new FileInputStream(Utils.getPath(dirName, batchFileName));
         }
         return fileArray;
     }
 
     /**
-     * this function, which is a part of phase 3 in the writing process, sorts and merges the file
-     * contents that of the files that are between the begin and end indexes of the given file array
-     * @param fileArray the array which contains the files that the function will merge
+     * this function initializes a file output stream array of the given size. These are the files created
+     * in phase 2 of the writing process and in each merge occurring in phase 3.
+     */
+    private FileOutputStream[] initializeFileOutputArray(int numFiles, int phase) throws FileNotFoundException {
+        FileOutputStream[] fileArray = new FileOutputStream[numFiles];
+        for (int i = 0; i < numFiles; i++) {
+            String batchFileName = numFiles == 1 ? Utils.MERGED_FILE_NAME : ((phase > 0 ? "phase" + phase + "_" : "")
+                    + Utils.BATCH_FILE_NAME_BASE + i);
+            fileArray[i] = new FileOutputStream(Utils.getPath(dirName, batchFileName));
+        }
+        return fileArray;
+    }
+
+    /**
+     * returns an array of names of files for merging phase
+     */
+    private String[] getMergeFileNames(int numFiles, int phase){
+        String[] fileNames = new String[numFiles];
+        for (int i = 0; i < numFiles; i++) {
+            fileNames[i] = numFiles == 1 ? Utils.MERGED_FILE_NAME : ((phase > 0 ? "phase" + phase + "_" : "")
+                    + Utils.BATCH_FILE_NAME_BASE + i);
+        }
+        return fileNames;
+    }
+
+    /**
+     * takes array of file names and returns an array of data input streams with the file names as file input streams
+     * for the data input streams
+     */
+    private DataInputStream[] outputToInputDataStream(String[] fileNames) throws IOException
+    {
+        DataInputStream[] dataInputStreams = new DataInputStream[fileNames.length];
+        for (int i=0; i<fileNames.length; i++){
+            dataInputStreams[i] = new DataInputStream(new BufferedInputStream(new FileInputStream(Utils.getPath(dirName, fileNames[i]))));
+        }
+        return dataInputStreams;
+    }
+
+
+    /**
+     * this function, which is a part of phase 3 in the writing process, sorts and merges the mergedFile
+     * contents that of the files that are between the begin and end indexes of the given mergedFile array
+     * @param filesToMergeArray the array which contains the files that the function will merge
      * @param begin begin index of the slice
      * @param end end index of the slice
      * @param sequenceSize the size of the sequence of numbers that is inspected in each sorting phase
-     * @param file the file into which all of the sorted and merged content will be written to
+     * @param mergedFile the mergedFile into which all of the sorted and merged content will be written to
      */
-    private void mergeFiles(RandomAccessFile[] fileArray, int begin, int end, int sequenceSize,
-                            RandomAccessFile file) throws IOException {
-        int numOfFiles = end-begin;  // the number fo files to merge
+        private void mergeFiles(DataInputStream[] filesToMergeArray, int begin, int end, int sequenceSize,
+                                DataOutputStream mergedFile) throws IOException {
+        int numOfFiles = Math.min(end, filesToMergeArray.length)-begin;  // the number fo files to merge
         int[] sequencePointers = new int[numOfFiles];  // this array stores the pointer values of each sequence
         IntPair[] pairs = new IntPair[numOfFiles]; // current pair of each of the sequences
         int[][] currFileContents = new int[numOfFiles][sequenceSize*2];
 
-        for(int i = 0; i < numOfFiles; i++){ // read the initial sequences from each file
-            Utils.parseNextSequence(fileArray[begin+i], currFileContents[i]);
+        for(int i = 0; i < numOfFiles; i++){ // read the initial sequences from each mergedFile
+            Utils.parseNextSequence(filesToMergeArray[begin+i], currFileContents[i]);
             pairs[i] = new IntPair(currFileContents[i][0], currFileContents[i][1]);
         }
         int numUnfinishedFiles = numOfFiles;
 
         while(numUnfinishedFiles > 0){ // while didn't finish writing content of all files
-            int minArg = Utils.findMinArgIndex(pairs);  // write the minimal pair to file
-            Utils.writePair(file, pairs[minArg]);
+            int minArg = Utils.findMinArgIndex(pairs);  // write the minimal pair to mergedFile
+            Utils.writePair(mergedFile, pairs[minArg]);
             int currPointer = sequencePointers[minArg] += 2;
 
-            // advance pointer of sequence or load next sequence or mark end of file
+            // advance pointer of sequence or load next sequence or mark end of mergedFile
             if(currPointer >= sequenceSize * 2){ // reached the end of the current sequence
                 sequencePointers[minArg] = 0;
-                Utils.parseNextSequence(fileArray[begin+minArg], currFileContents[minArg]);
+                Utils.parseNextSequence(filesToMergeArray[begin+minArg], currFileContents[minArg]);
                 pairs[minArg].setVals(currFileContents[minArg][0], currFileContents[minArg][1]);
                 currPointer = 0;
             }
-            if(currFileContents[minArg][currPointer] == -1){  // reached end of file
+            if(currFileContents[minArg][currPointer] == -1){  // reached end of mergedFile
                 numUnfinishedFiles -= 1;
-                pairs[minArg].setVals(amountOfTokens, 0);
+                pairs[minArg].setVals(amountOfTokens, amountOfTokens);
             }
             else pairs[minArg].setVals(currFileContents[minArg][currPointer],
                     currFileContents[minArg][currPointer+1]);
         }
     }
+
+//    /**
+//     * this function receives the files that were created during phase 2 of the index writing
+//     * process and uses external sort in order to merge and sort their contents into a single file
+//     */
+//    private void externalSortAndMergeInvertedIndex(int numFiles) throws IOException {
+//        int mergePhase = 0;
+//        int currNumFiles = numFiles;
+//        File[] fileArray = initializeFileArray(numFiles, mergePhase);
+//        RandomAccessFile[] rafArray = Utils.fileArrayToRafArray(fileArray);
+//        while(currNumFiles > 1){
+//            System.out.format("merge phase %d started\n", mergePhase);  // TODO delete this line
+//            int sequenceSize = (int)(AMOUNT_OF_PAIRS_TO_READ_TO_MAIN_MEM / (double)currNumFiles) + 1;
+//            int numFilesAfterMerge = (int)Math.ceil(currNumFiles / (double)NUM_OF_FILES_TO_MERGE);
+//            File[] mergedFileArray = initializeFileArray(numFilesAfterMerge, mergePhase+1);
+//            RandomAccessFile[] mergedRafArray = Utils.fileArrayToRafArray(mergedFileArray);
+//            for(int i = 0; i < currNumFiles; i += NUM_OF_FILES_TO_MERGE){
+//                mergeFiles(rafArray, i, i+NUM_OF_FILES_TO_MERGE, sequenceSize,
+//                        mergedRafArray[i / NUM_OF_FILES_TO_MERGE]);
+//            }
+//            Utils.closeRafStreams(rafArray);
+//            Utils.deleteFiles(fileArray); // delete the files from the last merge-phase
+//            fileArray = mergedFileArray;
+//            rafArray = mergedRafArray;
+//            currNumFiles = numFilesAfterMerge;
+//            mergePhase++;
+//        }
+//        rafArray[0].close(); // close the merged file stream
+////        Utils.printFile(rafArray[0]); // TODO delete this line
+////        System.exit(0);
+//    }
 
 
     /**
@@ -89,19 +162,32 @@ public class IndexWriter
     private void externalSortAndMergeInvertedIndex(int numFiles) throws IOException {
         int mergePhase = 0;
         int currNumFiles = numFiles;
-        RandomAccessFile[] fileArray = initializeFileArray(numFiles, mergePhase);
+        String[] inputFileNames = getMergeFileNames(numFiles, mergePhase);
+        FileInputStream[] inputFileArray = initializeFileInputArray(numFiles, mergePhase);
+        DataInputStream[] inputDataArray = Utils.fileInputArrayToDataInputArray(inputFileArray);
+
         while(currNumFiles > 1){
-            int sequenceSize = (int)(AMOUNT_OF_DOCS_TO_READ_PER_BATCH / (double)currNumFiles) + 1;
+            System.out.format("merge phase %d started\n", mergePhase);  // TODO delete this line
+            int sequenceSize = (int)(AMOUNT_OF_PAIRS_TO_READ_TO_MAIN_MEM / (double)currNumFiles) + 1;
             int numFilesAfterMerge = (int)Math.ceil(currNumFiles / (double)NUM_OF_FILES_TO_MERGE);
-            RandomAccessFile[] mergedFileArray = initializeFileArray(numFilesAfterMerge, mergePhase);
+            String[] outputFileNames = getMergeFileNames(numFilesAfterMerge, mergePhase+1);
+            FileOutputStream[] mergedFileArray = initializeFileOutputArray(numFilesAfterMerge, mergePhase+1);
+            DataOutputStream[] mergedDataArray = Utils.fileOutputArrayToDataOutputArray(mergedFileArray);
             for(int i = 0; i < currNumFiles; i += NUM_OF_FILES_TO_MERGE){
-                mergeFiles(fileArray, i, i+NUM_OF_FILES_TO_MERGE, sequenceSize,
-                        mergedFileArray[i / NUM_OF_FILES_TO_MERGE]);
+                mergeFiles(inputDataArray, i, i+NUM_OF_FILES_TO_MERGE, sequenceSize,
+                        mergedDataArray[i / NUM_OF_FILES_TO_MERGE]);
             }
-            fileArray = mergedFileArray;
+
+            Utils.closeRafStreams(inputDataArray);
+            Utils.deleteFiles(inputFileNames, dirName); // delete the files from the last merge-phase
+            inputFileNames = outputFileNames;
+            inputDataArray = outputToInputDataStream(outputFileNames);
             currNumFiles = numFilesAfterMerge;
             mergePhase++;
         }
+        inputDataArray[0].close(); // close the merged file stream
+//        Utils.printFile(rafArray[0]); // TODO delete this line
+//        System.exit(0);
     }
 
     /**
@@ -111,8 +197,8 @@ public class IndexWriter
      */
     private void writeInvertedIndex(){
         try {
-            invertedIndexFile.seek(0);
-            invertedIndexFile.write(Utils.binaryStringToByte(accumulatedString.toString()));
+            byte[] stringAsByteArr = Utils.binaryStringToByte(accumulatedString.toString());
+            invertedIndexWriter.write(stringAsByteArr, 0, stringAsByteArr.length);
         }
         catch (IOException e) {
             Utils.handleException(e);
@@ -125,13 +211,10 @@ public class IndexWriter
      * @param s2 second String
      * @return length of the common prefix
      */
-    private int commonPrefix(String s1, String s2)
-    {
+    private int commonPrefix(String s1, String s2) {
         int len = Math.min(s1.length(), s2.length());
-        for (int i=0; i < len; i++)
-        {
-            if (s1.charAt(i) != s2.charAt(i))
-            {
+        for (int i=0; i < len; i++) {
+            if (s1.charAt(i) != s2.charAt(i)) {
                 return i;
             }
         }
@@ -185,25 +268,21 @@ public class IndexWriter
                                 int[] numOfTotalTokens, int[] reviewId, String inputFile) throws IOException
     {
         ReviewPreprocessor rp = new ReviewPreprocessor(inputFile);
-        reviewDataFile.seek(0);
+        DataOutputStream metaDataWriter = new DataOutputStream(new BufferedOutputStream(reviewDataFile));
         while (rp.hasMoreReviews()) {
             ArrayList<String> reviewData = rp.getNextReview();
             String[] text = rp.getReviewText();
-
             // write meta data to metadata file
-            reviewDataFile.write(Utils.productIDToByteArray(reviewData.get(0))); // product id
-            reviewDataFile.write((byte)Integer.parseInt(reviewData.get(1))); // numerator
-            reviewDataFile.write((byte)Integer.parseInt(reviewData.get(2))); // denominator
-            reviewDataFile.write((byte)(int)Double.parseDouble(reviewData.get(3))); // score
+
+            byte[] prodIdByteArr = Utils.productIDToByteArray(reviewData.get(0));
+            metaDataWriter.write(prodIdByteArr, 0, prodIdByteArr.length); // product id
+            metaDataWriter.write((byte)Integer.parseInt(reviewData.get(1))); // numerator
+            metaDataWriter.write((byte)Integer.parseInt(reviewData.get(2))); // denominator
+            metaDataWriter.write((byte)(int)Double.parseDouble(reviewData.get(3))); // score
             int length = text.length;
-            reviewDataFile.write(length & 0xff); // length- first byte
-            reviewDataFile.write((length >> 8) & 0xff); // length- second byte
+            metaDataWriter.write(length & 0xff); // length- first byte
+            metaDataWriter.write((length >> 8) & 0xff); // length- second byte
 
-            // TODO: think if the way this function works can be more efficient. do we need to count how many times the
-            //  word appeared in the each text? or can we simply go over the text and update wordCountTotal
-            //  (and add productId)
-
-            HashMap<String, Integer> wordCountInThisReview = new HashMap<>();   // for counting how many time each word appeared in the text
             // iterate over text. count amount of tokens (with repetitions)
             // and count amount of times word appeared in text
             Integer prevVal;
@@ -224,30 +303,6 @@ public class IndexWriter
             reviewId[0]++;
             if (reviewId[0] == Utils.AMOUNT_OF_DOCS_TO_PARSE) // TODO: for testing only
                 break;
-
-//            for (String word : text) {
-//                numOfTotalTokens[0]++;
-//                prevVal = wordCountInThisReview.putIfAbsent(word, 1);
-//                if (prevVal != null) {
-//                    wordCountInThisReview.put(word, ++prevVal);
-//                }
-//            }
-//
-//            // enter/update "productId" into data structures
-//            String productId = reviewData.get(0);
-//            prevVal = wordCountInThisReview.putIfAbsent(productId, 1);
-//            if (prevVal != null) {
-//                wordCountInThisReview.put(productId, ++prevVal);
-//            }
-//
-//            // enter/update each significant word into data structures
-//            for (String word : wordCountInThisReview.keySet()) {
-//                // update total count of this word
-//                prevVal = wordCountTotal.putIfAbsent(word, wordCountInThisReview.get(word));
-//                if (prevVal != null) {
-//                    wordCountTotal.put(word, prevVal + wordCountInThisReview.get(word));
-//                }
-//            }
         }
     }
 
@@ -280,8 +335,9 @@ public class IndexWriter
         try
         {
             // set up
+            // TODO: change to buffer reader
             fis = new FileInputStream(Utils.getPath(dirName, Utils.MERGED_FILE_NAME));
-            dis = new DataInputStream(fis);
+            dis = new DataInputStream(new BufferedInputStream(fis));
             int prevTermId = dis.readInt();
             int prevDocId = dis.readInt();
             int termId = prevTermId;
@@ -293,7 +349,6 @@ public class IndexWriter
             int inReviewCount = 0;      // counter of how many times did term appear in the same review (i.e doc frequency)
             int distinctTermId = 0;
 
-//            while (tokenIndex < amountOfTokens)       //go over all text tokens
             while (true)    //go over all text tokens. at end of loop there is a try/catch that breaks from the loop when reaching EOF
             {
                 if (termId == prevTermId)   // still same word
@@ -333,7 +388,10 @@ public class IndexWriter
 
                     // encode posting list and word frequencies
                     encodePostingListAndFrequencies(postingList, wordCountInEachReview);
-
+                    if (distinctTermId % AMOUNT_OF_WORDS_PER_FLUSH_TO_II == 0) {
+                        writeInvertedIndex();
+                        accumulatedString = new StringBuilder();
+                    }
                     //TODO: in previous ex we accumulated the whole encoding of the II and only at the end wrote it to
                     // disk. maybe here we will need to write to disk every now and than instead.
                     // for now nothing is written to disk. If we indeed split the writing to the disk, we'll need to
@@ -358,7 +416,10 @@ public class IndexWriter
                 docId = dis.readInt();
                 tokenIndex++;
             }
-
+            Utils.safelyCloseStreams(fis, dis);
+            File mergedFile = new File(Utils.getPath(dirName, Utils.MERGED_FILE_NAME));
+//            mergedFile.deleteOnExit();
+            mergedFile.delete();
             // add last term to II
             postingList.add(docId);
             wordCountInEachReview.add(inReviewCount);
@@ -374,25 +435,22 @@ public class IndexWriter
      * to file.
      * @return amount of files creates (==number of batches)
      */
-    private int[] sortBatches()
-    {
+    private int[] sortBatches() {
         ReviewPreprocessor rp = new ReviewPreprocessor(inputFileName);
         int docId = 1;
         int batchId = 0;
         int totalAmount = 0;    //TODO maybe needs to be long
         String batchFileNameBase = "batch_";
         ArrayList<IntPair> pairs = new ArrayList<>();
-        while (rp.hasMoreReviews())
-        {
+        while (rp.hasMoreReviews()) {
+            beginSubStepTime = System.currentTimeMillis();    // TODO delete this line
             int amountOfDocsLeft = amountOfReviews - (docId - 1);
             int howManyToRead = Math.min(amountOfDocsLeft, AMOUNT_OF_DOCS_TO_READ_PER_BATCH);
             // read AMOUNT_OF_DOCS_TO_READ_PER_BATCH (or what is left from the reviews) reviews and create pairs of (termId, docId)
-            for (int i = 0; i < howManyToRead; i++)
-            {
+            for (int i = 0; i < howManyToRead; i++) {
                 rp.getNextReview();
                 String[] text = rp.getReviewText();
-                for (String word: text)
-                {
+                for (String word: text) {
                     IntPair pair = new IntPair(termIdMapping.get(word), docId);
                     pairs.add(pair);
                     totalAmount++;
@@ -402,19 +460,33 @@ public class IndexWriter
                 totalAmount++;
                 docId++;
             }
+            if (batchId < 2 || batchId == 9){
+                Utils.printTime("\treading batch " + batchId +" from input", (System.currentTimeMillis() - beginSubStepTime), Utils.SECONDS);    // TODO delete this line
+            }
 
+            beginSubStepTime = System.currentTimeMillis();    // TODO delete this line
             // sort and write to file
             Collections.sort(pairs);
+            if (batchId < 2 || batchId == 9){
+                Utils.printTime("\tsorting batch " + batchId + " pairs", (System.currentTimeMillis() - beginSubStepTime), Utils.SECONDS);    // TODO delete this line
+            }
+
             String batchFileName = batchFileNameBase + batchId;
-            try
-            {
-                RandomAccessFile batchFile = new RandomAccessFile(Utils.getPath(dirName, batchFileName), "rw");
-                for (IntPair pair: pairs)
-                {
+            DataOutputStream batchFile;
+            try {
+                beginSubStepTime = System.currentTimeMillis();    // TODO delete this line
+
+                batchFile = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(Utils.getPath(dirName, batchFileName))));
+                // TODO: buffer writer
+                for (IntPair pair: pairs) {
                     batchFile.writeInt(pair.termId);
                     batchFile.writeInt(pair.docId);
                 }
+                batchFile.flush();
                 batchFile.close();
+                if (batchId < 2 || batchId == 9){
+                    Utils.printTime("\twriting sorted batch " + batchId +" to disk", (System.currentTimeMillis() - beginSubStepTime), Utils.SECONDS);    // TODO delete this line
+                }
             }
             catch (IOException e) { Utils.handleException(e);}
             batchId++;
@@ -430,15 +502,17 @@ public class IndexWriter
      * @param wordCountTotal how many times did word appear in total
      * @param numOfTotalTokens total amount of tokens in data
      * @param reviewId counter indicating review number
-//     * @return Dictionary object with all data except for 1) pointers to invertedIndex 2) lastWordEnding 3) numPaddedZeroes
+    //     * @return Dictionary object with all data except for 1) pointers to invertedIndex 2) lastWordEnding 3) numPaddedZeroes
      */
     private void createDictionaryAndTermIdMap(HashMap<String, Integer> wordCountTotal, int[] numOfTotalTokens,
-                                                              int[] reviewId)
+                                              int[] reviewId)
     {
+        beginSubSubStepTime = System.currentTimeMillis();   // TODO delete this line
         ArrayList<String> sortedVocabulary = new ArrayList<>(wordCountTotal.keySet());
         Collections.sort(sortedVocabulary); // sort vocabulary to insert into dictionary and index
+        Utils.printTime("\t\tsort Vocabulary", (System.currentTimeMillis() - beginSubSubStepTime), Utils.SECONDS);    // TODO delete this line
 
-        Dictionary dict = new Dictionary(sortedVocabulary.size(), numOfTotalTokens[0]);
+        Dictionary dict = new Dictionary(sortedVocabulary.size(), numOfTotalTokens[0]);  // local var for saving to disk and having more free memory
         termIdMapping = new HashMap<>();
 
         ListIterator<String> vocabIter = sortedVocabulary.listIterator();
@@ -470,7 +544,9 @@ public class IndexWriter
         }
         dict.sizeOfLastBlock = ((index) % Dictionary.K) +1;
         dict.amountOfReviews = reviewId[0] - 1;
-        dict.writeDictToDisk(dirName);
+        beginSubSubStepTime = System.currentTimeMillis();   // TODO delete this line
+        dict.writeDictToDisk(dirName);      // cache dictionary to disk
+        Utils.printTime("\t\twrite dict to disk", (System.currentTimeMillis() - beginSubSubStepTime), Utils.SECONDS);    // TODO delete this line
         amountOfReviews = reviewId[0] - 1;
     }
 
@@ -495,59 +571,103 @@ public class IndexWriter
         4) read big sorted file and create II (including all steps for it: compression, update posting list pointer...)
          */
         /* ------------------- open files ------------------- */
+        // TODO: delete from here
+        System.out.println("=== BEGIN ===");
+        System.out.println("Reading " + Utils.AMOUNT_OF_DOCS_TO_PARSE + " reviews from " + inputFile);
+        System.out.println("Parameters:");
+        System.out.println("AMOUNT_OF_DOCS_TO_READ_PER_BATCH = " + AMOUNT_OF_DOCS_TO_READ_PER_BATCH);
+        System.out.println("AMOUNT_OF_PAIRS_TO_READ_TO_MAIN_MEM = " + AMOUNT_OF_PAIRS_TO_READ_TO_MAIN_MEM);
+        System.out.println("NUM_OF_FILES_TO_MERGE = " + NUM_OF_FILES_TO_MERGE);
+        System.out.println("AMOUNT_OF_WORDS_PER_FLUSH_TO_II = " + AMOUNT_OF_WORDS_PER_FLUSH_TO_II);
+
+        long beginTimeTotal = System.currentTimeMillis();
+        // TODO: until here
         dirName = dir;
         inputFileName = inputFile;
         try {
-            if (!Files.exists(Paths.get(dir)))
-            {
+            if (!Files.exists(Paths.get(dir))) {
                 Files.createDirectory(Paths.get(dir));
             }
-            invertedIndexFile = new RandomAccessFile(Utils.getPath(dir, Utils.INVERTED_INDEX_FILE_NAME), "rw");
-            reviewDataFile = new RandomAccessFile(Utils.getPath(dir, Utils.REVIEW_METADATA_FILE_NAME), "rw");
+            invertedIndexFile = new FileOutputStream(Utils.getPath(dir, Utils.INVERTED_INDEX_FILE_NAME));
+            invertedIndexWriter = new DataOutputStream(new BufferedOutputStream(invertedIndexFile));
+            reviewDataFile = new FileOutputStream(Utils.getPath(dir, Utils.REVIEW_METADATA_FILE_NAME));
         }
         catch (IOException e) { Utils.handleException(e); }
 
         /* ------------- preprocess reviews (metadata of reviews and counting of terms and tokens) ------------- */
+        System.out.println("/* step 1 starts */"); // TODO delete this line
+        long beginTimeStep = System.currentTimeMillis();    // TODO delete this line
+
         HashMap<String, Integer> wordCountTotal = new HashMap<>();      // mapping term: total frequency in whole corpus
         int[] numOfTotalTokens = {0}; //TODO: maybe need long, int can hold "only" ~2.14 billion
         int[] reviewId = {1};
         try
         {
+            beginSubStepTime = System.currentTimeMillis();    // TODO delete this line
             processReviews(wordCountTotal, numOfTotalTokens, reviewId, inputFile);      // meta data file is created here
+            Utils.printTime("\tprocessing reviews and creating meta data file", (System.currentTimeMillis() - beginSubStepTime), Utils.MINUTES);    // TODO delete this line
         }
         catch (IOException e) { Utils.handleException(e); }
-
+        beginSubStepTime = System.currentTimeMillis();    // TODO delete this line
         createDictionaryAndTermIdMap(wordCountTotal, numOfTotalTokens, reviewId);
-
+        Utils.printTime("\tcreating dictionary and term to Id map", (System.currentTimeMillis() - beginSubStepTime), Utils.MINUTES);    // TODO delete this line
         //TODO: idea #2 for memory optimization - We don't need the dictionary at all until step 4 when we write the II.
         // So, lets cache it in createDictionaryAndTermIdMap to a file, and read it into dict before step 4 starts,
-        // leaving memory as free as possible for external sorting
+        // leaving memory as free as possible for external sorting.
+        // On the second hand, maybe the writing and reading time are not worth the few MB we save in memory
+
+        long endTimeStep = System.currentTimeMillis();  // TODO delete this line
+        Utils.printTime("step 1", (endTimeStep-beginTimeStep), Utils.MINUTES); // TODO delete this line
 
         /* step 1 done */
+        System.out.println("/* step 2 starts */"); // TODO delete this line
+        beginTimeStep = System.currentTimeMillis(); // TODO delete this line
 
         int[] res = sortBatches();
-        int amountOfBatchFiles = res[0];    // Eli might need this to know how many files there are
+        int amountOfBatchFiles = res[0];
         amountOfTokens = res[1];        // This is exactly how many pairs were written
 
+        endTimeStep = System.currentTimeMillis();   // TODO delete this line
+        Utils.printTime("step 2", (endTimeStep-beginTimeStep), Utils.MINUTES);  // TODO delete this line
         /* step 2 done */
+
+        System.out.println("/* step 3 starts */"); // TODO delete this line
+        beginTimeStep = System.currentTimeMillis(); // TODO delete this line
 
         /* merge batch files into one big file*/
         try {
             externalSortAndMergeInvertedIndex(amountOfBatchFiles);
         }
         catch (IOException e) { Utils.handleException(e);}
+        endTimeStep = System.currentTimeMillis();   // TODO delete this line
+        Utils.printTime("step 3", (endTimeStep-beginTimeStep), Utils.MINUTES);  // TODO delete this line
 
         /* step 3 done*/
+        System.out.println("/* step 4 starts */"); // TODO delete this line
+        beginTimeStep = System.currentTimeMillis(); // TODO delete this line
+
+        beginSubStepTime = System.currentTimeMillis();    // TODO delete this line
         dict = Dictionary.loadDictionary(dirName);
+        Utils.printTime("\treading dictionary back from disk", (System.currentTimeMillis() - beginSubStepTime), Utils.SECONDS);    // TODO delete this line
+        beginSubStepTime = System.currentTimeMillis();    // TODO delete this line
         readMergedAndCreateInvertedIndex();
+        Utils.printTime("\treading merged file and creating II", (System.currentTimeMillis() - beginSubStepTime), Utils.MINUTES);    // TODO delete this line
+
         dict.lastWordEnding = pos;
         dict.numPaddedZeroes = accumulatedString.length()%8 == 0 ?
                 0 : 8 - accumulatedString.length() % 8; // pad with zeroes in order to fit data into bytes
+
+        beginSubStepTime = System.currentTimeMillis();    // TODO delete this line
         writeInvertedIndex();
+        Utils.printTime("\twriting II to disk", (System.currentTimeMillis() - beginSubStepTime), Utils.SECONDS);    // TODO delete this line
         dict.writeDictToDisk(dir);
         Utils.safelyCloseStreams(invertedIndexFile, reviewDataFile);
 
+        endTimeStep = System.currentTimeMillis();   // TODO delete this line
+        Utils.printTime("step 4", (endTimeStep-beginTimeStep), Utils.MINUTES);  // TODO delete this line
         /* step 4 done. index created*/
+        System.out.println("step 4 done, writing finished"); // TODO delete this line
+        Utils.printTime("\n========================\nIndex creation", (endTimeStep-beginTimeTotal), Utils.MINUTES);
     }
 
     /**
