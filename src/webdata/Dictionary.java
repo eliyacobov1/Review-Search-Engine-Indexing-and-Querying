@@ -3,6 +3,7 @@ import java.io.*;
 
 public class Dictionary{
     String concatStr = "";
+    StringBuilder concatStrBuilder;
     int[] blockArray;
     int[] dictionary; // for 1d array implementation
     int tokenSizeOfReviews;
@@ -63,8 +64,8 @@ public class Dictionary{
         int totalSizeOfDict = amountOfBlocks*ENTRIES_FOR_FIRST_LAST + amountOfBlocks*ENTRIES_FOR_FIRST_LAST +
                 amountOfMiddleOfBlockWords *ENTRIES_FOR_MIDDLE;
         dictionary = new int[totalSizeOfDict+1];
-
         tokenSizeOfReviews = amountOfTokens;
+        concatStrBuilder = new StringBuilder();
     }
 
     Dictionary(int amountOfTokens, String concatStr, int[] blockArray, int[] dictionary, int amountOfReviews, int numPaddedZeroes, int lastWordEnding, int sizeOfLastBlock)
@@ -135,8 +136,10 @@ public class Dictionary{
      * @param postingPrt pointer to location in inverted index where we can find posting list of word
      */
     void addFirstWordInBlock(String word, int freq, int postingPrt) {
-        blockArray[blockIndex] = concatStr.length();
-        concatStr += word;
+//        blockArray[blockIndex] = concatStr.length();
+//        concatStr += word;
+        blockArray[blockIndex] = concatStrBuilder.length();
+        concatStrBuilder.append(word);
         blockIndex++;
 
         writeToDict(freq);
@@ -154,8 +157,8 @@ public class Dictionary{
      * @param middle boolean indicator indicating if word is in the middle of block or at the end
      */
     private void addWordThatIsNotFirst(String word, int freq, int postingPtr, int prefixLen, boolean middle) {
-        concatStr += word.substring(prefixLen); // add suffix of word
-
+//        concatStr += word.substring(prefixLen); // add suffix of word
+        concatStrBuilder.append(word.substring(prefixLen));
         writeToDict(freq);
         if (middle)
         {
