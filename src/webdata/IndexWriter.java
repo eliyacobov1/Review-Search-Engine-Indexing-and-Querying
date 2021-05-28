@@ -15,8 +15,8 @@ public class IndexWriter
     private FileOutputStream invertedIndexFile = null;
     private DataOutputStream invertedIndexWriter = null;
     private FileOutputStream reviewDataFile = null;
-    private static final int NUM_OF_FILES_TO_MERGE = 4;
-    public final int AMOUNT_OF_DOCS_TO_READ_PER_BATCH = 75000;
+    private static int NUM_OF_FILES_TO_MERGE = 4;
+    public final int AMOUNT_OF_DOCS_TO_READ_PER_BATCH = Math.min(65000, Utils.AMOUNT_OF_DOCS_TO_PARSE);
     public final int AMOUNT_OF_PAIRS_TO_READ_TO_MAIN_MEM = 35000;
     public final int AMOUNT_OF_WORDS_PER_FLUSH_TO_II = 25000;
     private HashMap<String, Integer> termIdMapping;
@@ -162,6 +162,7 @@ public class IndexWriter
      * process and uses external sort in order to merge and sort their contents into a single file
      */
     private void externalSortAndMergeInvertedIndex(int numFiles) throws IOException {
+        NUM_OF_FILES_TO_MERGE = Math.min(NUM_OF_FILES_TO_MERGE, numFiles);
         int mergePhase = 0;
         int currNumFiles = numFiles;
         String[] inputFileNames = getMergeFileNames(numFiles, mergePhase);
@@ -670,12 +671,20 @@ public class IndexWriter
 
         System.out.println("/* step 3 starts */"); // TODO delete this line
         beginTimeStep = System.currentTimeMillis(); // TODO delete this line
-
-        /* merge batch files into one big file*/
-        try {
-            externalSortAndMergeInvertedIndex(amountOfBatchFiles);
+        if (amountOfBatchFiles > 1)
+        {
+            /* merge batch files into one big file*/
+            try {
+                externalSortAndMergeInvertedIndex(amountOfBatchFiles);
+            }
+            catch (IOException e) { Utils.handleException(e);}
         }
-        catch (IOException e) { Utils.handleException(e);}
+        else
+        {
+            File batch0 = new File(Utils.getPath(dirName, Utils.BATCH_FILE_NAME_BASE+"0"));
+            File mergedFile = new File(Utils.getPath(dirName, Utils.MERGED_FILE_NAME));
+            boolean status = batch0.renameTo(mergedFile);
+        }
         endTimeStep = System.currentTimeMillis();   // TODO delete this line
         Utils.printTime("step 3", (endTimeStep-beginTimeStep), Utils.MINUTES);  // TODO delete this line
 

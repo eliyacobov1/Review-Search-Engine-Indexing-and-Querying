@@ -4,16 +4,16 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 
-class Utils {
+public class Utils {
     static final int SECONDS = 0;
     static final int MINUTES = 1;
     static final int MILLISECONDS = 2;
 
-    static final int AMOUNT_OF_DOCS_TO_PARSE = 10000000;      // TODO: for testing only
-    static final String DICTIONARY_NAME = "dictionary";
+    public static int AMOUNT_OF_DOCS_TO_PARSE = 1000;      // TODO: for testing only
+    public static final String DICTIONARY_NAME = "dictionary";
     static final String MERGED_FILE_NAME = "mergedFile";
-    static final String INVERTED_INDEX_FILE_NAME = "inverted_index";
-    static final String REVIEW_METADATA_FILE_NAME = "reviews_meta_data";
+    public static final String INVERTED_INDEX_FILE_NAME = "inverted_index";
+    public static final String REVIEW_METADATA_FILE_NAME = "reviews_meta_data";
     static final String BATCH_FILE_NAME_BASE = "batch_";
 
 
@@ -314,7 +314,7 @@ class Utils {
     /**
      * combines dir name and file name
      */
-    static String getPath(String dir, String fileName) {
+    public static String getPath(String dir, String fileName) {
         Path path = Paths.get(dir).resolve(fileName);
         return path.toString();
     }
