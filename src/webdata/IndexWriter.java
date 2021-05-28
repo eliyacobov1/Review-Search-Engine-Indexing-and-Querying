@@ -8,15 +8,17 @@ import java.util.*;
 
 public class IndexWriter
 {
+    long beginTimeStep;
+    long endTimeStep;
     long beginSubStepTime;
     long beginSubSubStepTime;
     private FileOutputStream invertedIndexFile = null;
     private DataOutputStream invertedIndexWriter = null;
     private FileOutputStream reviewDataFile = null;
     private static final int NUM_OF_FILES_TO_MERGE = 4;
-    public final int AMOUNT_OF_DOCS_TO_READ_PER_BATCH = 50000;
-    public final int AMOUNT_OF_PAIRS_TO_READ_TO_MAIN_MEM = 25000;
-    public final int AMOUNT_OF_WORDS_PER_FLUSH_TO_II = 10000;
+    public final int AMOUNT_OF_DOCS_TO_READ_PER_BATCH = 75000;
+    public final int AMOUNT_OF_PAIRS_TO_READ_TO_MAIN_MEM = 35000;
+    public final int AMOUNT_OF_WORDS_PER_FLUSH_TO_II = 25000;
     private HashMap<String, Integer> termIdMapping;
     private String dirName;
     private String inputFileName;
@@ -188,7 +190,7 @@ public class IndexWriter
             inputFileNames = outputFileNames;
             inputDataArray = outputToInputDataStream(outputFileNames);
             currNumFiles = numFilesAfterMerge;
-            Utils.printTime("\tmerge phase " + mergePhase, (System.currentTimeMillis() - beginSubStepTime), Utils.SECONDS);    // TODO delete this line
+            Utils.printTime("\tmerge phase " + mergePhase, (System.currentTimeMillis() - beginSubStepTime), Utils.MINUTES);    // TODO delete this line
             mergePhase++;
         }
         inputDataArray[0].close(); // close the merged file stream
@@ -341,7 +343,6 @@ public class IndexWriter
         try
         {
             // set up
-            // TODO: change to buffer reader
             fis = new FileInputStream(Utils.getPath(dirName, Utils.MERGED_FILE_NAME));
             dis = new DataInputStream(new BufferedInputStream(fis));
             int prevTermId = dis.readInt();
@@ -525,6 +526,7 @@ public class IndexWriter
         ListIterator<String> vocabIter = sortedVocabulary.listIterator();
         String prevWord = "";
         int index = 0;
+        // iterate all word in sorted vocabulary
         while (vocabIter.hasNext())
         {
             index = vocabIter.nextIndex();
@@ -549,6 +551,7 @@ public class IndexWriter
             }
             prevWord = word;
         }
+        dict.concatStr = dict.concatStrBuilder.toString();
         dict.sizeOfLastBlock = ((index) % Dictionary.K) +1;
         dict.amountOfReviews = reviewId[0] - 1;
         Utils.printTime("\t\titerate vocabulary and fill dictionary", (System.currentTimeMillis() - beginSubSubStepTime), Utils.MINUTES);    // TODO delete this line
@@ -556,6 +559,32 @@ public class IndexWriter
         dict.writeDictToDisk(dirName);      // cache dictionary to disk
         Utils.printTime("\t\twrite dict to disk", (System.currentTimeMillis() - beginSubSubStepTime), Utils.SECONDS);    // TODO delete this line
         amountOfReviews = reviewId[0] - 1;
+    }
+
+    /**
+     * first pass over reviews - create metadata file, dictionary and termId mapping
+     */
+    private void step1()
+    {
+        System.out.println("/* step 1 starts */"); // TODO delete this line
+        beginTimeStep = System.currentTimeMillis();    // TODO delete this line
+
+        HashMap<String, Integer> wordCountTotal = new HashMap<>();      // mapping term: total frequency in whole corpus
+        int[] numOfTotalTokens = {0}; //TODO: maybe need long, int can hold "only" ~2.14 billion
+        int[] reviewId = {1};
+        try
+        {
+            beginSubStepTime = System.currentTimeMillis();    // TODO delete this line
+            processReviews(wordCountTotal, numOfTotalTokens, reviewId, inputFileName);      // meta data file is created here
+            Utils.printTime("\tprocessing reviews and creating meta data file", (System.currentTimeMillis() - beginSubStepTime), Utils.MINUTES);    // TODO delete this line
+        }
+        catch (IOException e) { Utils.handleException(e); }
+        beginSubStepTime = System.currentTimeMillis();    // TODO delete this line
+        createDictionaryAndTermIdMap(wordCountTotal, numOfTotalTokens, reviewId);
+        Utils.printTime("\tcreating dictionary and term to Id map", (System.currentTimeMillis() - beginSubStepTime), Utils.MINUTES);    // TODO delete this line
+
+        endTimeStep = System.currentTimeMillis();  // TODO delete this line
+        Utils.printTime("step 1", (endTimeStep-beginTimeStep), Utils.MINUTES); // TODO delete this line
     }
 
     /**
@@ -603,30 +632,30 @@ public class IndexWriter
         catch (IOException e) { Utils.handleException(e); }
 
         /* ------------- preprocess reviews (metadata of reviews and counting of terms and tokens) ------------- */
-        System.out.println("/* step 1 starts */"); // TODO delete this line
-        long beginTimeStep = System.currentTimeMillis();    // TODO delete this line
-
-        HashMap<String, Integer> wordCountTotal = new HashMap<>();      // mapping term: total frequency in whole corpus TODO: this can be huge, get rid of it for more memory space
-        int[] numOfTotalTokens = {0}; //TODO: maybe need long, int can hold "only" ~2.14 billion
-        int[] reviewId = {1};
-        try
-        {
-            beginSubStepTime = System.currentTimeMillis();    // TODO delete this line
-            processReviews(wordCountTotal, numOfTotalTokens, reviewId, inputFile);      // meta data file is created here
-            Utils.printTime("\tprocessing reviews and creating meta data file", (System.currentTimeMillis() - beginSubStepTime), Utils.MINUTES);    // TODO delete this line
-        }
-        catch (IOException e) { Utils.handleException(e); }
-        beginSubStepTime = System.currentTimeMillis();    // TODO delete this line
-        createDictionaryAndTermIdMap(wordCountTotal, numOfTotalTokens, reviewId);
-        Utils.printTime("\tcreating dictionary and term to Id map", (System.currentTimeMillis() - beginSubStepTime), Utils.MINUTES);    // TODO delete this line
-        //TODO: idea #2 for memory optimization - We don't need the dictionary at all until step 4 when we write the II.
-        // So, lets cache it in createDictionaryAndTermIdMap to a file, and read it into dict before step 4 starts,
-        // leaving memory as free as possible for external sorting.
-        // On the second hand, maybe the writing and reading time are not worth the few MB we save in memory
-
-        long endTimeStep = System.currentTimeMillis();  // TODO delete this line
-        Utils.printTime("step 1", (endTimeStep-beginTimeStep), Utils.MINUTES); // TODO delete this line
-
+//        System.out.println("/* step 1 starts */"); // TODO delete this line
+//        beginTimeStep = System.currentTimeMillis();    // TODO delete this line
+//
+//        HashMap<String, Integer> wordCountTotal = new HashMap<>();      // mapping term: total frequency in whole corpus TODO: this can be huge, get rid of it for more memory space
+//        int[] numOfTotalTokens = {0}; //TODO: maybe need long, int can hold "only" ~2.14 billion
+//        int[] reviewId = {1};
+//        try
+//        {
+//            beginSubStepTime = System.currentTimeMillis();    // TODO delete this line
+//            processReviews(wordCountTotal, numOfTotalTokens, reviewId, inputFile);      // meta data file is created here
+//            Utils.printTime("\tprocessing reviews and creating meta data file", (System.currentTimeMillis() - beginSubStepTime), Utils.MINUTES);    // TODO delete this line
+//        }
+//        catch (IOException e) { Utils.handleException(e); }
+//        beginSubStepTime = System.currentTimeMillis();    // TODO delete this line
+//        createDictionaryAndTermIdMap(wordCountTotal, numOfTotalTokens, reviewId);
+//        Utils.printTime("\tcreating dictionary and term to Id map", (System.currentTimeMillis() - beginSubStepTime), Utils.MINUTES);    // TODO delete this line
+//        //TODO: idea #2 for memory optimization - We don't need the dictionary at all until step 4 when we write the II.
+//        // So, lets cache it in createDictionaryAndTermIdMap to a file, and read it into dict before step 4 starts,
+//        // leaving memory as free as possible for external sorting.
+//        // On the second hand, maybe the writing and reading time are not worth the few MB we save in memory
+//
+//        endTimeStep = System.currentTimeMillis();  // TODO delete this line
+//        Utils.printTime("step 1", (endTimeStep-beginTimeStep), Utils.MINUTES); // TODO delete this line
+        step1();
         /* step 1 done */
         System.out.println("/* step 2 starts */"); // TODO delete this line
         beginTimeStep = System.currentTimeMillis(); // TODO delete this line
@@ -665,9 +694,7 @@ public class IndexWriter
         dict.numPaddedZeroes = accumulatedString.length()%8 == 0 ?
                 0 : 8 - accumulatedString.length() % 8; // pad with zeroes in order to fit data into bytes
 
-        beginSubStepTime = System.currentTimeMillis();    // TODO delete this line
         writeInvertedIndex();
-        Utils.printTime("\twriting II to disk", (System.currentTimeMillis() - beginSubStepTime), Utils.SECONDS);    // TODO delete this line
         dict.writeDictToDisk(dir);
         Utils.safelyCloseStreams(invertedIndexFile, reviewDataFile);
 
