@@ -13,23 +13,9 @@ public class Utils {
     public static final String DICTIONARY_NAME = "dictionary";
     static final String MERGED_FILE_NAME = "mergedFile";
     public static final String INVERTED_INDEX_FILE_NAME = "inverted_index";
+    public static final String INTERMEDIATE_INDEX_FILE_NAME = "intermediate_index";
     public static final String REVIEW_METADATA_FILE_NAME = "reviews_meta_data";
     static final String BATCH_FILE_NAME_BASE = "batch_";
-
-
-    static void printFile(RandomAccessFile file) throws IOException {  // TODO this function is for debugging only
-        file.seek(0);
-        while(true) {
-            try {
-                int x = file.readInt();
-                System.out.println(x);
-            } catch (EOFException e) {
-                System.out.println("Done printing file");
-                file.seek(0);
-                return;
-            }
-        }
-    }
 
 
     /**
@@ -55,12 +41,6 @@ public class Utils {
         file.writeInt(pair.docId);
     }
 
-    /**
-     * this function receives an array of RAF object and closes each of it's streams
-     */
-    static void closeRafStreams(RandomAccessFile[] files) throws IOException {
-        for(RandomAccessFile file: files) file.close();
-    }
 
     /**
      * this function receives an array of RAF object and closes each of it's streams
@@ -94,20 +74,17 @@ public class Utils {
         return files;
     }
 
-    /**
-     * this function receives an array of files and deletes them (meant for temporary files)
-     */
-    static void deleteFiles(File[] arr){
-        for(File file: arr) file.deleteOnExit();
-    }
 
     /**
      * this function receives an array of files names and deletes them (meant for temporary files)
      */
     static void deleteFiles(String[] arr, String dirName){
         for(String fileName: arr){
-            new File(getPath(dirName, fileName)).deleteOnExit();
-//            new File(getPath(dirName, fileName)).delete();
+//            new File(getPath(dirName, fileName)).deleteOnExit();
+            File f = new File(getPath(dirName, fileName));
+            if (!f.delete()){
+                f.deleteOnExit();
+            }
         }
     }
 

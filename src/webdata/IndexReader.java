@@ -380,7 +380,9 @@ public class IndexReader {
                 if (postingListPtrs[1] == POINTER_TO_AFTER_DICT) {
                     // token is the last word in the dictionary so we need don't have pointer to next word's
                     // posting list to use as border for reading
+                    invertedIndexFile = Utils.openIndexFile(invertedIndexFileName, dirName);
                     postingListPtrs[1] = (int)invertedIndexFile.length()*8;
+                    Utils.safelyCloseFile(invertedIndexFile);
                 }
                 String binaryResult = readInvertedIndex(postingListPtrs[0], postingListPtrs[1]);
                 ArrayList<Integer> tokenReviews = Utils.decodeDelta(binaryResult);
