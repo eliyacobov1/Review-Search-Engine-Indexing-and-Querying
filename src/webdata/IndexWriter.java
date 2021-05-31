@@ -18,7 +18,7 @@ public class IndexWriter {
     private DataOutputStream intermediateIndexWriter = null;
     private FileOutputStream reviewDataFile = null;
     private static int NUM_OF_FILES_TO_MERGE = 4;
-    public final int AMOUNT_OF_DOCS_TO_READ_PER_BATCH = Math.min(65000, Utils.AMOUNT_OF_DOCS_TO_PARSE);
+    public final int AMOUNT_OF_DOCS_TO_READ_PER_BATCH = 100000;
     public final int AMOUNT_OF_PAIRS_TO_READ_TO_MAIN_MEM = 35000;
     public final int AMOUNT_OF_WORDS_PER_FLUSH_TO_II = 25000;
     private HashMap<String, Integer> termIdMapping;
@@ -412,6 +412,8 @@ public class IndexWriter {
             int howManyToRead = Math.min(amountOfDocsLeft, AMOUNT_OF_DOCS_TO_READ_PER_BATCH);
             // read AMOUNT_OF_DOCS_TO_READ_PER_BATCH (or what is left from the reviews) reviews and create pairs of (termId, docId)
             for (int i = 0; i < howManyToRead; i++) {
+                if (!rp.hasMoreReviews())
+                    break;
                 rp.getNextReview();
                 String[] text = rp.getReviewText();
                 for (String word: text) {
