@@ -325,18 +325,18 @@ public class Utils {
         float time = 0;
         String unit = "";
         switch (convertTo) {
-            case MILLISECONDS -> {
+            case MILLISECONDS:
                 time = timeInMs;
                 unit = " milliseconds\n";
-            }
-            case SECONDS -> {
+
+            case SECONDS:
                 time = (float) timeInMs / 1000f;
                 unit = " seconds\n";
-            }
-            case MINUTES -> {
+
+            case MINUTES:
                 time = ((float) timeInMs / 1000f) / 60;
                 unit = " minutes\n";
-            }
+
         }
         System.out.println("Time: " + time + unit);
     }
