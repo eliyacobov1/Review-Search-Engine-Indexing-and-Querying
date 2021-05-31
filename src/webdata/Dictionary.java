@@ -5,10 +5,10 @@ public class Dictionary{
     String concatStr = "";
     StringBuilder concatStrBuilder;
     int[] blockArray;
-    int[] dictionary; // for 1d array implementation
+    long[] dictionary; // for 1d array implementation
     int tokenSizeOfReviews;
     int amountOfReviews;
-    int lastWordEnding;
+    long lastWordEnding;
     int sizeOfLastBlock;
     private int blockIndex = 0; // for keeping track in block array
     private int dictIndex = 0;  // for keeping track in dictionary array
@@ -63,12 +63,12 @@ public class Dictionary{
         int amountOfMiddleOfBlockWords = vocabularySize - 2*amountOfBlocks;
         int totalSizeOfDict = amountOfBlocks*ENTRIES_FOR_FIRST_LAST + amountOfBlocks*ENTRIES_FOR_FIRST_LAST +
                 amountOfMiddleOfBlockWords *ENTRIES_FOR_MIDDLE;
-        dictionary = new int[totalSizeOfDict+1];
+        dictionary = new long[totalSizeOfDict+1];
         tokenSizeOfReviews = amountOfTokens;
         concatStrBuilder = new StringBuilder();
     }
 
-    Dictionary(int amountOfTokens, String concatStr, int[] blockArray, int[] dictionary, int amountOfReviews, int numPaddedZeroes, int lastWordEnding, int sizeOfLastBlock)
+    Dictionary(int amountOfTokens, String concatStr, int[] blockArray, long[] dictionary, int amountOfReviews, int numPaddedZeroes, long lastWordEnding, int sizeOfLastBlock)
     {
         this.tokenSizeOfReviews = amountOfTokens;
         this.concatStr = concatStr;
@@ -105,11 +105,11 @@ public class Dictionary{
                 dos.writeInt(i);
             }
             dos.writeInt(dictionary.length);
-            for (int i: dictionary) {
-                dos.writeInt(i);
+            for (long i: dictionary) {
+                dos.writeLong(i);
             }
             dos.writeInt(numPaddedZeroes);
-            dos.writeInt(lastWordEnding);
+            dos.writeLong(lastWordEnding);
             dos.writeInt(sizeOfLastBlock);
             dos.flush();
         }
@@ -196,9 +196,9 @@ public class Dictionary{
      * @param wordOffset offset of the word in the block
      * @return pointer to the beginning of the wanted "row"
      */
-    int getWordRow(int blockIndex, int wordOffset){
-        int beginningOfBlock = blockIndex * Dictionary.LINE_LENGTH;
-        int offset = 0;
+    long getWordRow(long blockIndex, long wordOffset){
+        long beginningOfBlock = blockIndex * Dictionary.LINE_LENGTH;
+        long offset = 0;
         if (wordOffset != 0){
             offset = ENTRIES_FOR_FIRST_LAST + (wordOffset-1)*ENTRIES_FOR_MIDDLE;
         }
@@ -211,8 +211,8 @@ public class Dictionary{
      * @param wordOffset offset of the word in the block
      * @return length of the wanted word
      */
-    int getWordLen(int blockIndex, int wordOffset) {
-        return dictionary[getWordRow(blockIndex, wordOffset) + LENGTH_INDEX];
+    long getWordLen(long blockIndex, long wordOffset) {
+        return dictionary[(int) (getWordRow(blockIndex, wordOffset) + LENGTH_INDEX)];
     }
 
     /**
@@ -221,9 +221,9 @@ public class Dictionary{
      * @param wordOffset offset of the word in the block
      * @return frequency of the wanted word
      */
-    int getWordFreq(int blockIndex, int wordOffset)
+    long getWordFreq(int blockIndex, int wordOffset)
     {
-        return dictionary[getWordRow(blockIndex, wordOffset)];
+        return dictionary[(int) getWordRow(blockIndex, wordOffset)];
     }
 
     /**
@@ -233,16 +233,16 @@ public class Dictionary{
      * @param firstOrLast boolean indicator for first or last word of block
      * @return posting list pointer of the wanted word
      */
-    int getPostingPtr(int blockIndex, int wordOffset, boolean firstOrLast) {
+    long getPostingPtr(long blockIndex, long wordOffset, boolean firstOrLast) {
         if (firstOrLast) {
-            return dictionary[getWordRow(blockIndex, wordOffset) + POSTING_INDEX_FIRST_OR_LAST];
+            return dictionary[(int) (getWordRow(blockIndex, wordOffset) + POSTING_INDEX_FIRST_OR_LAST)];
         }
         else {
-            return dictionary[getWordRow(blockIndex, wordOffset) + POSTING_INDEX_MIDDLE];
+            return dictionary[(int) (getWordRow(blockIndex, wordOffset) + POSTING_INDEX_MIDDLE)];
         }
     }
 
-    void setPostingPtr(int wordIndex, int ptr)
+    void setPostingPtr(int wordIndex, long ptr)
     {
         dictionary[wordIndex] = ptr;
     }
@@ -253,8 +253,8 @@ public class Dictionary{
      * @param wordOffset offset of the word in the block
      * @return length of the prefix of the wanted word
      */
-    int getWordPrefix(int blockIndex, int wordOffset) {
-        return dictionary[getWordRow(blockIndex, wordOffset) + PREFIX_INDEX_MIDDLE];
+    long getWordPrefix(long blockIndex, long wordOffset) {
+        return dictionary[(int) (getWordRow(blockIndex, wordOffset) + PREFIX_INDEX_MIDDLE)];
     }
 
     /**
@@ -264,12 +264,12 @@ public class Dictionary{
      * @param last true if this is the last word of the block
      * @return length of the prefix of the wanted word
      */
-    int getWordPrefix(int blockIndex, int wordOffset, boolean last) {
+    long getWordPrefix(int blockIndex, int wordOffset, boolean last) {
         if(last){
-            return dictionary[getWordRow(blockIndex, wordOffset) + PREFIX_INDEX_LAST];
+            return dictionary[(int) (getWordRow(blockIndex, wordOffset) + PREFIX_INDEX_LAST)];
         }
         else{
-            return dictionary[getWordRow(blockIndex, wordOffset) + PREFIX_INDEX_MIDDLE];
+            return dictionary[(int) (getWordRow(blockIndex, wordOffset) + PREFIX_INDEX_MIDDLE)];
         }
     }
 
@@ -299,9 +299,9 @@ public class Dictionary{
             int amountOfReviews = dis.readInt();
 
             int[] blockArray = Utils.readIntArray(dis);
-            int[] dict = Utils.readIntArray(dis);
+            long[] dict = Utils.readLongArray(dis);
             int amountOfPaddedZeros = dis.readInt();
-            int lastWordEnding = dis.readInt();
+            long lastWordEnding = dis.readLong();
             int sizeOfLastBlock = dis.readInt();
             newDictionary =  new Dictionary(tokenSizeOfReviews, concatStr, blockArray, dict, amountOfReviews, amountOfPaddedZeros, lastWordEnding, sizeOfLastBlock);
         }

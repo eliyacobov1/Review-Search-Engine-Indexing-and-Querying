@@ -30,14 +30,14 @@ public class IndexReader {
     /**
      * Name of the review meta-data output file
      */
-    private static final String reviewDataFileName = "reviews meta data";
+    private static final String reviewDataFileName = Utils.REVIEW_METADATA_FILE_NAME;
 
 
     /**
      * this function returns a string which represents the bit data
      * stored in the output-file between the given start and end indexes
      */
-    private String readInvertedIndex(int startPos, int endPos) throws IOException {
+    private String readInvertedIndex(long startPos, long endPos) throws IOException {
         invertedIndexFile = Utils.openIndexFile(invertedIndexFileName, dirName);
         startPos += numPaddedZeroes; // shift indexes in order to ignore redundant 0 bits
         endPos += numPaddedZeroes;
@@ -49,7 +49,7 @@ public class IndexReader {
                 "%8s", Integer.toBinaryString(n & 0xff)
         ));
         String res = resBuilder.toString().replace(' ', '0');
-        res = res.substring(startPos % 8, (startPos % 8) + endPos-startPos);
+        res = res.substring((int)startPos % 8, (int)((startPos % 8) + endPos-startPos));
         Utils.safelyCloseFile(invertedIndexFile);
         return res;
     }
@@ -73,8 +73,8 @@ public class IndexReader {
     private String getFirstWordOfBlock(int blockIndex)
     {
         int blockPtr = dictionary.blockArray[blockIndex];
-        int wordLength = dictionary.getWordLen(blockIndex, 0);
-        return dictionary.concatStr.substring(blockPtr, blockPtr + wordLength);
+        long wordLength = dictionary.getWordLen(blockIndex, 0);
+        return dictionary.concatStr.substring(blockPtr, (int) (blockPtr + wordLength));
     }
 
     private ArrayList<String> getReviewMetaData(int reviewId) throws IOException
@@ -141,7 +141,7 @@ public class IndexReader {
     private String getSuffix(int blockIndex, int inBlockPtr, int prefixLen, int wordOfBlock, int prevSuffixLen) {
         String suffix;
         int suffixLen;
-        suffixLen = dictionary.getWordLen(blockIndex, wordOfBlock) - prefixLen;
+        suffixLen = (int) (dictionary.getWordLen(blockIndex, wordOfBlock) - prefixLen);
         suffix = dictionary.concatStr.substring(inBlockPtr + prevSuffixLen, inBlockPtr + prevSuffixLen + suffixLen);
         return suffix;
     }
@@ -176,7 +176,7 @@ public class IndexReader {
             int prevSuffixLen = word.length();
             int blockSize = getBlockSize(blockIndex);
             for (wordOfBlock = 1; wordOfBlock < blockSize; ++wordOfBlock) {
-                prefixLen = dictionary.getWordPrefix(blockIndex, wordOfBlock);
+                prefixLen = (int) dictionary.getWordPrefix(blockIndex, wordOfBlock);
                 prefix = word.substring(0, prefixLen);
 
                 suffix = getSuffix(blockIndex, inBlockPtr, prefixLen, wordOfBlock, prevSuffixLen);
@@ -200,7 +200,7 @@ public class IndexReader {
                 }
                 suffix = dictionary.concatStr.substring(inBlockPtr + prevSuffixLen, dictionary.concatStr.length());
             }
-            prefixLen = dictionary.getWordPrefix(blockIndex, wordOfBlock, true);
+            prefixLen = (int) dictionary.getWordPrefix(blockIndex, wordOfBlock, true);
             prefix = word.substring(0, prefixLen);
             word = prefix.concat(suffix);
             if (token.equals(word)) {
@@ -295,8 +295,8 @@ public class IndexReader {
      * @return posting list pointers of given token and the following one.
      * if token is not in dictionary - returns null
      */
-    private int[] getPostingListPtr(String token) {
-        int[] pair = new int[2];
+    private long[] getPostingListPtr(String token) {
+        long[] pair = new long[2];
         int blockIndex = findBlockOfToken(token);
         int wordOffset = getLocationOfTokenInBlock(blockIndex, token);
 
@@ -339,7 +339,7 @@ public class IndexReader {
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenFrequency(String token) {
-        int[] postingPtr = getPostingListPtr(token);
+        long[] postingPtr = getPostingListPtr(token);
         if (postingPtr != null) {
             try {
                 String binaryResult = readInvertedIndex(postingPtr[0], postingPtr[1]);
@@ -361,7 +361,7 @@ public class IndexReader {
         if (wordOffset == -1)
             return 0;
 
-        return dictionary.getWordFreq(blockIndex, wordOffset);
+        return (int) dictionary.getWordFreq(blockIndex, wordOffset);
     }
 
     /**
@@ -374,14 +374,14 @@ public class IndexReader {
      * Returns an empty Enumeration if there are no reviews containing this token
      */
     public Enumeration<Integer> getReviewsWithToken(String token) {
-        int[] postingListPtrs = getPostingListPtr(token);
+        long[] postingListPtrs = getPostingListPtr(token);
         if (postingListPtrs != null) {
             try {
                 if (postingListPtrs[1] == POINTER_TO_AFTER_DICT) {
                     // token is the last word in the dictionary so we need don't have pointer to next word's
                     // posting list to use as border for reading
                     invertedIndexFile = Utils.openIndexFile(invertedIndexFileName, dirName);
-                    postingListPtrs[1] = (int)invertedIndexFile.length()*8;
+                    postingListPtrs[1] = invertedIndexFile.length()* 8L;
                     Utils.safelyCloseFile(invertedIndexFile);
                 }
                 String binaryResult = readInvertedIndex(postingListPtrs[0], postingListPtrs[1]);
@@ -418,7 +418,7 @@ public class IndexReader {
      * Returns an empty Enumeration if there are no reviews for this product
      */
     public Enumeration<Integer> getProductReviews(String productId) {
-        int[] postingListPtrs = getPostingListPtr(productId);
+        long[] postingListPtrs = getPostingListPtr(productId);
         if (postingListPtrs != null) {
             try {
                 String binaryResult = readInvertedIndex(postingListPtrs[0], postingListPtrs[1]);

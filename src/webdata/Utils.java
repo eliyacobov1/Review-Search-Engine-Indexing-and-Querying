@@ -34,6 +34,21 @@ public class Utils {
     }
 
     /**
+     * reads an array of ints that was previously saved to disk. how much to read is stored before the data itself.
+     * @param dis DataInputStream to read from
+     * @return array of ints that was read
+     */
+    public static long[] readLongArray(DataInputStream dis) throws IOException {
+        int arrayLen = dis.readInt();   // first read the length of the array
+        long[] array = new long[arrayLen];
+        for (int i = 0; i < arrayLen; i++)
+        {
+            array[i] = dis.readLong();
+        }
+        return array;
+    }
+
+    /**
      * this function writes the given pair to the given file
      */
     static void writePair(DataOutputStream file, IntPair pair) throws IOException {

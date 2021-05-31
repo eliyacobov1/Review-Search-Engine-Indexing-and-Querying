@@ -1,0 +1,17 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="webdata_ex2">
+    <output-path>$PROJECT_DIR$/out/artifacts/webdata_ex2</output-path>
+    <root id="archive" name="webdata_project.jar">
+      <element id="file-copy" path="$PROJECT_DIR$/src/analysis.pdf" />
+      <element id="file-copy" path="$PROJECT_DIR$/src/README" />
+      <element id="directory" name="webdata">
+        <element id="file-copy" path="$PROJECT_DIR$/src/webdata/Dictionary.java" />
+        <element id="file-copy" path="$PROJECT_DIR$/src/webdata/IndexReader.java" />
+        <element id="file-copy" path="$PROJECT_DIR$/src/webdata/IndexWriter.java" />
+        <element id="file-copy" path="$PROJECT_DIR$/src/webdata/IntPair.java" />
+        <element id="file-copy" path="$PROJECT_DIR$/src/webdata/ReviewPreprocessor.java" />
+        <element id="file-copy" path="$PROJECT_DIR$/src/webdata/Utils.java" />
+      </element>
+    </root>
+  </artifact>
+</component>
