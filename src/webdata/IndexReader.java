@@ -49,7 +49,7 @@ public class IndexReader {
                 "%8s", Integer.toBinaryString(n & 0xff)
         ));
         String res = resBuilder.toString().replace(' ', '0');
-        res = res.substring((int)startPos % 8, (int)((startPos % 8) + endPos-startPos));
+        res = res.substring((int)(startPos % 8L), (int)((startPos % 8L) + endPos-startPos));
         Utils.safelyCloseFile(invertedIndexFile);
         return res;
     }

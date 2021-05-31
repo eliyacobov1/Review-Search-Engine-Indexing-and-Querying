@@ -85,7 +85,6 @@ public class Dictionary{
      * @param dir path to directory where dictionary should be written to
      */
     void writeDictToDisk(String dir){
-        // TODO: think how to make more efficient writing
         DataOutputStream dos = null;
         FileOutputStream fos = null;
 
