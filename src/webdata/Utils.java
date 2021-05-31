@@ -9,7 +9,7 @@ public class Utils {
     static final int MINUTES = 1;
     static final int MILLISECONDS = 2;
 
-    public static int AMOUNT_OF_DOCS_TO_PARSE = 100000000;      // TODO: for testing only
+//    public static int AMOUNT_OF_DOCS_TO_PARSE = 100000000;      // TODO: for testing only
     public static final String DICTIONARY_NAME = "dictionary";
     static final String MERGED_FILE_NAME = "mergedFile";
     public static final String INVERTED_INDEX_FILE_NAME = "inverted_index";

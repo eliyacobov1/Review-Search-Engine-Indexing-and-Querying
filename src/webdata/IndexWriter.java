@@ -283,8 +283,8 @@ public class IndexWriter {
                 wordCountTotal.put(productId, ++prevVal);
             }
             reviewId[0]++;
-            if (reviewId[0] == Utils.AMOUNT_OF_DOCS_TO_PARSE) // TODO: for testing only
-                break;
+//            if (reviewId[0] == Utils.AMOUNT_OF_DOCS_TO_PARSE) // TODO: for testing only
+//                break;
         }
         metaDataWriter.flush();
     }
@@ -441,8 +441,8 @@ public class IndexWriter {
             catch (IOException e) { Utils.handleException(e);}
             batchId++;
             pairs.clear();
-            if (docId == Utils.AMOUNT_OF_DOCS_TO_PARSE) // TODO: for testing only
-                break;
+//            if (docId == Utils.AMOUNT_OF_DOCS_TO_PARSE) // TODO: for testing only
+//                break;
         }
         return new int[]{batchId, totalAmount};
     }
