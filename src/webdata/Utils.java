@@ -2,14 +2,12 @@ package webdata;
 import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
+import java.util.*;
 
 public class Utils {
     static final int SECONDS = 0;
     static final int MINUTES = 1;
     static final int MILLISECONDS = 2;
-
-//    public static int AMOUNT_OF_DOCS_TO_PARSE = 100000000;      // TODO: for testing only
     public static final String DICTIONARY_NAME = "dictionary";
     static final String MERGED_FILE_NAME = "mergedFile";
     public static final String INVERTED_INDEX_FILE_NAME = "inverted_index";
@@ -17,6 +15,15 @@ public class Utils {
     public static final String REVIEW_METADATA_FILE_NAME = "reviews_meta_data";
     static final String BATCH_FILE_NAME_BASE = "batch_";
 
+
+    /**
+     * return the top k keys of the given hash-map, sorted by the order of their respective values
+     */
+    static Enumeration<Integer> getTopKeysFromHashMap(int k, HashMap<Integer, Double> map){
+        List<Integer> mapKeys = new ArrayList<>(map.keySet());
+        mapKeys.sort(Comparator.comparingDouble(map::get));
+        return Collections.enumeration(mapKeys.subList(0, Math.min(mapKeys.size()-1, k)));
+    }
 
     /**
      * reads an array of ints that was previously saved to disk. how much to read is stored before the data itself.
