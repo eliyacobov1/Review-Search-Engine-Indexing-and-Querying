@@ -64,18 +64,6 @@
 
 ` `*Like the inverted index also a random-access file. This file holds for each review from the input it’s metadata: the product id that the review was about, the score of the review, the helpfulness of the review and the length of its text. The data is stored in binary where the product id is broken into chars and each char is written with 1 byte (since we know the bounds of the ascii values that compose productIds), 1 byte for score, 2 bytes for helpfulness and 2 bytes for length, total 15 bytes per review. The constant size of entries allows us to access the metadata of a review without needing to save a pointer to its location.*
 
-
-##
-##
-##
-##
-##
-##
-##
-##
-##
-**
-
 --
 \*
 ## **2	Main Memory Versus Disk**
