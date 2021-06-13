@@ -1,5 +1,6 @@
 # Review Sarch Engine- Indexing and Querying
 
+
 1. ## **General Explanation and Diagram**
 *Our index has 3 parts:*
 
