@@ -77,8 +77,7 @@ public class IndexReader {
         return dictionary.concatStr.substring(blockPtr, (int) (blockPtr + wordLength));
     }
 
-    private ArrayList<String> getReviewMetaData(int reviewId) throws IOException
-    {
+    private ArrayList<String> getReviewMetaData(int reviewId) throws IOException {
         reviewDataFile = Utils.openIndexFile(reviewDataFileName, dirName);
         reviewDataFile.seek(reviewSize*(reviewId-1));
         byte[] meta = new byte[reviewSize];
