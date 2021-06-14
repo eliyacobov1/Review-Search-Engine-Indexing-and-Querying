@@ -1,6 +1,6 @@
 import java.io.*;
-import java.util.Enumeration;
-import java.util.HashMap;
+import java.util.*;
+
 import webdata.*;
 
 
@@ -16,6 +16,11 @@ public class main {
         iw.write(inputFile, dir);
         IndexReader ir = new IndexReader(dir);
         ReviewSearch rs = new ReviewSearch(ir);
-        Enumeration<Integer> queryResults = rs.languageModelSearch(new Enumeration<String>(new String[]{"Hello", "when"}), 0.5, 3);
+        Enumeration<Integer> queryResults = rs.languageModelSearch(
+                Collections.enumeration(List.of("Hello", "when")), 0.5, 3
+        );
+        while(queryResults.hasMoreElements()){
+            System.out.println(queryResults.nextElement());
+        }
     }
 }

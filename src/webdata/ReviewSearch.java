@@ -4,14 +4,14 @@ import java.util.*;
 
 public class ReviewSearch {
     private final IndexReader ir;
-    private int totalNumTokens;
+    private final int totalNumTokens;
 
     /**
      * Constructor
      */
     public ReviewSearch(IndexReader iReader) {
         ir = iReader;
-        int totalNumTokens = ir.getTokenSizeOfReviews();
+        totalNumTokens = ir.getTokenSizeOfReviews();
     }
 
     /**
@@ -25,7 +25,7 @@ public class ReviewSearch {
         HashMap<Integer, Integer> sizeReviews = new HashMap<>();
         HashMap<String, Double> tokenCorpusFrequencies = new HashMap<>();
 
-        // iterate over all query tokens
+        /* iterate over all query tokens */
         while(query.hasMoreElements()){
             String token = query.nextElement();
             Enumeration<Integer> tokenReviews = ir.getReviewsWithToken(token);
@@ -36,7 +36,7 @@ public class ReviewSearch {
                 tokenCorpusFrequencies.put(token, tokenCorpusFreq);
             }
 
-            // iterate over all reviews containing the current token
+            /* iterate over all reviews containing the current token */
             while(tokenReviews.hasMoreElements()){
                 int reviewID = tokenReviews.nextElement();
                 int freq = tokenReviews.nextElement();
