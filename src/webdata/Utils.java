@@ -22,7 +22,9 @@ public class Utils {
     static Enumeration<Integer> getTopKeysFromHashMap(int k, HashMap<Integer, Double> map){
         List<Integer> mapKeys = new ArrayList<>(map.keySet());
         mapKeys.sort(Comparator.comparingDouble(map::get));
-        return Collections.enumeration(mapKeys.subList(0, Math.min(mapKeys.size()-1, k)));
+        Collections.reverse(mapKeys);
+        // [2, 731, 47, 818, 96, 129, 807]
+        return Collections.enumeration(mapKeys.subList(0, Math.min(mapKeys.size(), k)));
     }
 
     /**
