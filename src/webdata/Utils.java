@@ -19,8 +19,8 @@ public class Utils {
     /**
      * return the top k keys of the given hash-map, sorted by the order of their respective values
      */
-    static Enumeration<Integer> getTopKeysFromHashMap(int k, HashMap<Integer, Double> map){
-        List<Integer> mapKeys = new ArrayList<>(map.keySet());
+    static <T> Enumeration<T> getTopKeysFromHashMap(int k, HashMap<T, Double> map){
+        List<T> mapKeys = new ArrayList<>(map.keySet());
         mapKeys.sort(Comparator.comparingDouble(map::get));
         Collections.reverse(mapKeys);
         // [2, 731, 47, 818, 96, 129, 807]

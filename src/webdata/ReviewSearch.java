@@ -14,6 +14,12 @@ public class ReviewSearch {
         totalNumTokens = ir.getTokenSizeOfReviews();
     }
 
+    private double calcProductScore(int reviewID) {
+        int helpfulness = ir.getReviewHelpfulnessNumerator(reviewID); // TODO which component of the helpfulness should we use
+        int score = ir.getReviewScore(reviewID);
+        return score * helpfulness;
+    }
+
     /**
      * Returns a list of the id-s of the k most highly ranked reviews for the
      * given query, using the language model ranking function, smoothed using a
@@ -72,5 +78,32 @@ public class ReviewSearch {
         }
 
         return Utils.getTopKeysFromHashMap(k, reviewProbabilities);
+    }
+
+    /**
+     * Returns a list of the id-s of the k most highly ranked productIds for the
+     1
+     * given query using a function of your choice
+     * The list should be sorted by the ranking
+     */
+    public Collection<String> productSearch(Enumeration<String> query, int k) {
+//        HashSet<Integer> queryReviews = new HashSet<>();
+        HashMap<String, Double> productScores = new HashMap<>();
+
+        /* find all reviews that contain tokens form the given query */
+        while(query.hasMoreElements()){
+            String token = query.nextElement();
+            Enumeration<Integer> tokenReviews = ir.getReviewsWithToken(token);
+            while(tokenReviews.hasMoreElements()){
+                int reviewID = tokenReviews.nextElement();
+                int freq = tokenReviews.nextElement(); // TODO decide if frequency should be a part of score calculation
+//                queryReviews.add(reviewID);
+                String productID = ir.getProductId(reviewID);
+                if(!productScores.containsKey(productID)) productScores.put(productID, 0.0);
+                productScores.put(productID, productScores.get(productID) + calcProductScore(reviewID));
+            }
+        }
+
+        return Collections.list(Utils.getTopKeysFromHashMap(k, productScores));
     }
 }
