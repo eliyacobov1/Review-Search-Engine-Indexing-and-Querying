@@ -53,7 +53,7 @@ public class ReviewSearchTest {
     @Test
     public void TestlanguageModelSearch() throws IOException {
         Map<List<String>, List<Integer>> map = Map.of(
-//            Arrays.asList("quantity", "error"), Arrays.asList(731, 2, 854, 642, 984, 1000, 532),
+            Arrays.asList("quantity", "error"), Arrays.asList(731, 2, 854, 642, 984, 1000, 532),
             Arrays.asList("error", "since"), Arrays.asList(2, 731, 47, 818, 96, 129, 807)
         );
 

@@ -21,7 +21,11 @@ public class Utils {
      */
     static <T> Enumeration<T> getTopKeysFromHashMap(int k, HashMap<T, Double> map){
         List<T> mapKeys = new ArrayList<>(map.keySet());
-        mapKeys.sort(Comparator.comparingDouble(map::get));
+        mapKeys.sort((o1, o2) -> {
+            if(!map.get(o1).equals(map.get(o2))) return map.get(o1) > map.get(o2) ? 1 : -1;
+            else if(o1 instanceof Integer) return (int)o1 > (int)o2 ? -1 : 1;
+            else return 0;
+        });
         Collections.reverse(mapKeys);
         // [2, 731, 47, 818, 96, 129, 807]
         return Collections.enumeration(mapKeys.subList(0, Math.min(mapKeys.size(), k)));
